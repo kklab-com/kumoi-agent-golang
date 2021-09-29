@@ -1,0 +1,29 @@
+name: Go
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      env:
+        TEST_APP_ID: ${{ secrets.TEST_APP_ID }}
+        TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
+        TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
+      run: go test -v ./...
