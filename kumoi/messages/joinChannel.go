@@ -16,10 +16,6 @@ type JoinChannel struct {
 	RoleIndicator   omega.Role
 }
 
-func (c *JoinChannel) GetJoinChannel() *JoinChannel {
-	return c
-}
-
 func (c *JoinChannel) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Name = tf.GetJoinChannel().GetName()
 	c.Role = tf.GetJoinChannel().GetRole()

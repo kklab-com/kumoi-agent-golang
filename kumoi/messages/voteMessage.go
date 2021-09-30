@@ -12,10 +12,6 @@ type VoteMessage struct {
 	RoleIndicator omega.Role
 }
 
-func (c *VoteMessage) GetVoteMessage() *VoteMessage {
-	return c
-}
-
 func (c *VoteMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.FromSession = tf.GetVoteMessage().GetFromSession()
 	c.Message = tf.GetVoteMessage().GetMessage()

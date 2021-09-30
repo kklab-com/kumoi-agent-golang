@@ -12,10 +12,6 @@ type GetChannelMeta struct {
 	CreatedAt int64
 }
 
-func (c *GetChannelMeta) GetGetChannelMeta() *GetChannelMeta {
-	return c
-}
-
 func (c *GetChannelMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Data = tf.GetGetChannelMeta().GetData()
 	c.Name = tf.GetGetChannelMeta().GetName()

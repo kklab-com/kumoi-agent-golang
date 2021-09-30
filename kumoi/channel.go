@@ -144,7 +144,7 @@ func (c *Channel) SendOwnerMessage(msg string) bool {
 }
 
 func (c *Channel) GetCount() *messages.ChannelCount {
-	if tf := convertTransitFrame(c.omega.Agent().ChannelCount(c.Info().channelId).Get()); tf != nil {
+	if tf := castTransitFrame(c.omega.Agent().ChannelCount(c.Info().channelId).Get()); tf != nil {
 		r := &messages.ChannelCount{}
 		r.ParseTransitFrame(tf)
 		return r

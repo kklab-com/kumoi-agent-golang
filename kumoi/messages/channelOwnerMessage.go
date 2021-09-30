@@ -10,10 +10,6 @@ type ChannelOwnerMessage struct {
 	SubjectName string
 }
 
-func (c *ChannelOwnerMessage) GetChannelOwnerMessage() *ChannelOwnerMessage {
-	return c
-}
-
 func (c *ChannelOwnerMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.FromSession = tf.GetChannelOwnerMessage().GetFromSession()
 	c.Message = tf.GetChannelOwnerMessage().GetMessage()

@@ -3,6 +3,7 @@ package kumoi
 import (
 	"sync"
 
+	"github.com/kklab-com/gone-core/channel"
 	"github.com/kklab-com/goth-kkutil/concurrent"
 	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base"
@@ -83,12 +84,16 @@ func (o *Omega) Agent() *base.Agent {
 	return o.agent
 }
 
-func (o *Omega) GetAgentSession() base.AgentSession {
-	return o.agent.Session()
+func (o *Omega) GetAgentSession() AgentSession {
+	return &agentSession{session: o.agent.Session()}
 }
 
-func (o *Omega) GetRemoteSession(sessionId string) base.RemoteSession {
-	return o.Agent().GetRemoteSession(sessionId).Session()
+func (o *Omega) GetRemoteSession(sessionId string) RemoteSession {
+	if session := o.Agent().GetRemoteSession(sessionId).Session(); session != nil {
+		return &remoteSession{session: session}
+	}
+
+	return nil
 }
 
 func (o *Omega) Ping() bool {
@@ -123,7 +128,7 @@ func (o *Omega) Time() *messages.Time {
 
 func (o *Omega) GetChannel(channelId string) *ChannelInfo {
 	if v := o.agent.GetChannelMetadata(channelId).Get(); v != nil {
-		meta := convertTransitFrame(v).GetGetChannelMeta()
+		meta := castTransitFrame(v).GetGetChannelMeta()
 		channelInfo := &ChannelInfo{
 			channelId: meta.GetChannelId(),
 			name:      meta.GetName(),
@@ -140,7 +145,7 @@ func (o *Omega) GetChannel(channelId string) *ChannelInfo {
 
 func (o *Omega) GetVote(voteId string) *VoteInfo {
 	if v := o.agent.GetVoteMetadata(voteId).Get(); v != nil {
-		meta := convertTransitFrame(v).GetGetVoteMeta()
+		meta := castTransitFrame(v).GetGetVoteMeta()
 		voteInfo := &VoteInfo{
 			voteId:    meta.GetVoteId(),
 			name:      meta.GetName(),
@@ -209,12 +214,116 @@ func (o *Omega) invokeOnDisconnected() {
 	o.OnDisconnectedHandler()
 }
 
-func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) *apiresponse.CreateChannel {
-	return o.Agent().CreateChannel(createChannel).Get().(*apiresponse.CreateChannel)
+type CreateChannelFuture interface {
+	concurrent.Future
+	Response() *apiresponse.CreateChannel
+	Info() *ChannelInfo
+	Join() *Channel
 }
 
-func (o *Omega) CreateVote(createVote apirequest.CreateVote) *apiresponse.CreateVote {
-	return o.Agent().CreateVote(createVote).Get().(*apiresponse.CreateVote)
+type DefaultCreateChannelFuture struct {
+	concurrent.Future
+	omega *Omega
+}
+
+func (f *DefaultCreateChannelFuture) Response() *apiresponse.CreateChannel {
+	if v := f.Get(); v != nil {
+		return v.(*apiresponse.CreateChannel)
+	}
+
+	return nil
+}
+
+func (f *DefaultCreateChannelFuture) Info() *ChannelInfo {
+	if resp := f.Response(); resp != nil {
+		return f.omega.GetChannel(resp.ChannelId)
+	}
+
+	return nil
+}
+
+func (f *DefaultCreateChannelFuture) Join() *Channel {
+	if resp := f.Response(); resp != nil {
+		return f.Info().Join(resp.OwnerKey)
+	}
+
+	return nil
+}
+
+func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) CreateChannelFuture {
+	cf := o.Agent().CreateChannel(createChannel)
+	ccf := &DefaultCreateChannelFuture{
+		Future: channel.NewFuture(nil),
+		omega:  o,
+	}
+
+	cf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+		if f.IsSuccess() {
+			ccf.Completable().Complete(f.Get())
+		} else if f.IsError() {
+			ccf.Completable().Fail(f.Error())
+		} else if f.IsCancelled() {
+			ccf.Completable().Cancel()
+		}
+	}))
+
+	return ccf
+}
+
+type CreateVoteFuture interface {
+	concurrent.Future
+	Response() *apiresponse.CreateVote
+	Info() *VoteInfo
+	Join() *Vote
+}
+
+type DefaultCreateVoteFuture struct {
+	concurrent.Future
+	omega *Omega
+}
+
+func (f *DefaultCreateVoteFuture) Response() *apiresponse.CreateVote {
+	if v := f.Get(); v != nil {
+		return v.(*apiresponse.CreateVote)
+	}
+
+	return nil
+}
+
+func (f *DefaultCreateVoteFuture) Info() *VoteInfo {
+	if resp := f.Response(); resp != nil {
+		return f.omega.GetVote(resp.VoteId)
+	}
+
+	return nil
+}
+
+func (f *DefaultCreateVoteFuture) Join() *Vote {
+	if resp := f.Response(); resp != nil {
+		return f.Info().Join(resp.Key)
+	}
+
+	return nil
+}
+
+func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
+	vf := o.Agent().CreateVote(createVote)
+	cvf := &DefaultCreateVoteFuture{
+		Future: channel.NewFuture(nil),
+		omega:  o,
+	}
+
+	vf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+		if f.IsSuccess() {
+			cvf.Completable().Complete(f.Get())
+		} else if f.IsError() {
+			cvf.Completable().Fail(f.Error())
+		} else if f.IsCancelled() {
+			cvf.Completable().Cancel()
+		}
+	}))
+
+	return cvf
 }
 
 func (o *Omega) disconnectedProcess() {
@@ -248,7 +357,7 @@ func (b *OmegaBuilder) Connect() OmegaFuture {
 	return of
 }
 
-func convertTransitFrame(v interface{}) *omega.TransitFrame {
+func castTransitFrame(v interface{}) *omega.TransitFrame {
 	if v == nil {
 		return nil
 	}

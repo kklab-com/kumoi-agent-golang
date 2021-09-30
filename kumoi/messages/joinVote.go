@@ -12,10 +12,6 @@ type JoinVote struct {
 	SessionMetadata *base.Metadata
 }
 
-func (c *JoinVote) GetJoinVote() *JoinVote {
-	return c
-}
-
 func (c *JoinVote) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Name = tf.GetJoinVote().GetName()
 	c.SessionId = tf.GetJoinVote().GetSessionId()

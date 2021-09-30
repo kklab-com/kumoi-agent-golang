@@ -35,15 +35,15 @@ func TestOmega(t *testing.T) {
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.Time())
 	assert.True(t, o.Broadcast("golang broadcast test"))
-	chResp := o.CreateChannel(apirequest.CreateChannel{
+	chf := o.CreateChannel(apirequest.CreateChannel{
 		Name:              "!!!",
 		IdleTimeoutSecond: 300,
 	})
 
-	assert.NotNil(t, chResp)
-	chInfo := o.GetChannel(chResp.ChannelId)
+	assert.NotNil(t, chf.Response())
+	chInfo := chf.Info()
 	assert.NotNil(t, chInfo)
-	ch := chInfo.Join(chResp.ParticipatorKey)
+	ch := chInfo.Join(chf.Response().ParticipatorKey)
 	leave := false
 	ch.OnLeave(func() {
 		leave = true
@@ -61,7 +61,7 @@ func TestOmega(t *testing.T) {
 	assert.Nil(t, chInfo.Join(""))
 	assert.True(t, ch.Leave())
 
-	ch = chInfo.Join(chResp.OwnerKey)
+	ch = chf.Join()
 	closed := false
 	ch.OnClose(func() {
 		closed = true
@@ -133,17 +133,9 @@ func TestOmegaDisconnect(t *testing.T) {
 func TestOmegaWriteOnClosed(t *testing.T) {
 	o := NewOmegaBuilder(conf).Connect().Omega()
 	chResp := o.CreateChannel(apirequest.CreateChannel{})
-	chInfo := o.GetChannel(chResp.ChannelId)
+	chInfo := chResp.Info()
 	ch := chInfo.Join("")
 	assert.True(t, ch.SendMessage("!!!"))
 	o.Close().Await()
 	assert.False(t, ch.SendMessage("!!!"))
-}
-
-func TestOmegaKeepAlive(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
-	<-time.After(50 * time.Second)
-	assert.False(t, o.IsClosed())
-	assert.False(t, o.IsDisconnected())
-	assert.True(t, o.Close().Await().IsSuccess())
 }

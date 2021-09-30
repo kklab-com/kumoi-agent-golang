@@ -9,10 +9,6 @@ type ChannelCount struct {
 	Count             int32
 }
 
-func (c *ChannelCount) GetChannelCount() *ChannelCount {
-	return c
-}
-
 func (c *ChannelCount) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.OwnerCount = tf.GetChannelCount().GetOwnerCount()
 	c.ParticipatorCount = tf.GetChannelCount().GetParticipatorCount()

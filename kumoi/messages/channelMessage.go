@@ -13,10 +13,6 @@ type ChannelMessage struct {
 	RoleIndicator omega.Role
 }
 
-func (c *ChannelMessage) GetChannelMessage() *ChannelMessage {
-	return c
-}
-
 func (c *ChannelMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.FromSession = tf.GetChannelMessage().GetFromSession()
 	c.Message = tf.GetChannelMessage().GetMessage()

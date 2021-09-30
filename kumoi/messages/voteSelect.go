@@ -11,10 +11,6 @@ type VoteSelect struct {
 	VoteOptionId string
 }
 
-func (c *VoteSelect) GetVoteSelect() *VoteSelect {
-	return c
-}
-
 func (c *VoteSelect) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SessionId = tf.GetVoteSelect().GetSessionId()
 	c.Subject = tf.GetVoteSelect().GetSubject()

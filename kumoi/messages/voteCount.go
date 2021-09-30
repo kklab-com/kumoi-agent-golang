@@ -9,10 +9,6 @@ type VoteCount struct {
 	VoteOptions []VoteOption
 }
 
-func (c *VoteCount) GetVoteCount() *VoteCount {
-	return c
-}
-
 func (c *VoteCount) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.VoteOptions = nil
 	for _, vto := range tf.GetVoteCount().GetVoteOptions() {

@@ -13,10 +13,6 @@ type GetVoteMeta struct {
 	CreatedAt   int64
 }
 
-func (c *GetVoteMeta) GetGetVoteMeta() *GetVoteMeta {
-	return c
-}
-
 func (c *GetVoteMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.VoteOptions = nil
 	for _, vto := range tf.GetVoteCount().GetVoteOptions() {

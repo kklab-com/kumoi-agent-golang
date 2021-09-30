@@ -7,10 +7,6 @@ type LeaveChannel struct {
 	SessionId string
 }
 
-func (c *LeaveChannel) GetLeaveChannel() *LeaveChannel {
-	return c
-}
-
 func (c *LeaveChannel) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SessionId = tf.GetLeaveChannel().GetSessionId()
 	c.ChannelTransitFrame.ParseTransitFrame(tf)

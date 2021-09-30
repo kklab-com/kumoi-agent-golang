@@ -16,14 +16,14 @@ func TestOmegaVote(t *testing.T) {
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.Time())
 	assert.True(t, o.Broadcast("golang broadcast test"))
-	vtResp := o.CreateVote(apirequest.CreateVote{
+	vtf := o.CreateVote(apirequest.CreateVote{
 		Name:              "!!!",
 		VoteOptions:       []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 		IdleTimeoutSecond: 300,
 	})
 
-	assert.NotNil(t, vtResp)
-	vtInfo := o.GetVote(vtResp.VoteId)
+	assert.NotNil(t, vtf.Get())
+	vtInfo := vtf.Info()
 	assert.NotNil(t, vtInfo)
 	vt := vtInfo.Join("")
 	vt.OnLeave(func() {
@@ -43,7 +43,7 @@ func TestOmegaVote(t *testing.T) {
 	assert.Nil(t, vtInfo.Join(""))
 	assert.True(t, vt.Leave())
 
-	vt = vtInfo.Join(vtResp.Key)
+	vt = vtf.Join()
 	vt.OnClose(func() {
 		println("first close")
 	})
@@ -58,7 +58,7 @@ func TestOmegaVote(t *testing.T) {
 	assert.True(t, vt.Info().VoteOptions()[0].Select())
 	assert.True(t, vt.Status(omega.Vote_StatusDeny))
 	assert.False(t, vt.Select(vt.Info().VoteOptions()[1].Id))
-	assert.Equal(t, int32(1), vt.GetCount().GetVoteCount().VoteOptions[0].Count)
+	assert.Equal(t, int32(1), vt.GetCount().VoteOptions[0].Count)
 	assert.True(t, vt.Close())
 	assert.True(t, o.Close().Await().IsSuccess())
 }
@@ -66,16 +66,15 @@ func TestOmegaVote(t *testing.T) {
 func TestOmegaVoteWatch(t *testing.T) {
 	o := NewOmegaBuilder(conf).Connect().Omega()
 	assert.NotEmpty(t, o)
-	vtResp := o.CreateVote(apirequest.CreateVote{
+	vtf := o.CreateVote(apirequest.CreateVote{
 		Name:              "!!!",
 		VoteOptions:       []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 		IdleTimeoutSecond: 300,
 	})
 
-	assert.NotNil(t, vtResp)
-	vtInfo := o.GetVote(vtResp.VoteId)
-	assert.NotNil(t, vtInfo)
-	vt := vtInfo.Join(vtResp.Key)
+	assert.NotNil(t, vtf)
+	assert.NotNil(t, vtf.Response())
+	vt := vtf.Join()
 	vmCount := 0
 	vt.Watch(func(msg messages.VoteFrame) {
 		if _, ok := msg.(*messages.VoteMessage); ok {

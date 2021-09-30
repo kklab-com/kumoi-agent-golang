@@ -143,7 +143,7 @@ func (v *Vote) SendOwnerMessage(msg string) bool {
 }
 
 func (v *Vote) GetCount() *messages.VoteCount {
-	if tf := convertTransitFrame(v.omega.Agent().VoteCount(v.Info().voteId).Get()); tf != nil {
+	if tf := castTransitFrame(v.omega.Agent().VoteCount(v.Info().voteId).Get()); tf != nil {
 		r := &messages.VoteCount{}
 		r.ParseTransitFrame(tf)
 		return r
