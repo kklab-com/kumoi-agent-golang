@@ -39,7 +39,7 @@ func TestOmegaVote(t *testing.T) {
 	assert.False(t, vt.SendOwnerMessage("SendOwnerMessage"))
 	assert.False(t, vt.Status(omega.Vote_StatusDeny))
 	assert.True(t, vt.Select(vt.Info().VoteOptions()[1].Id))
-	assert.False(t, vt.Close())
+	assert.False(t, vtInfo.Close("").IsSuccess())
 	assert.Nil(t, vtInfo.Join(""))
 	assert.True(t, vt.Leave())
 
