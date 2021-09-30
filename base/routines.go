@@ -9,9 +9,11 @@ import (
 
 var routine = &_routine{}
 
+const DefaultRoutineInterval = time.Second
+
 func init() {
 	go func() {
-		timer := time.NewTimer(time.Second)
+		timer := time.NewTimer(DefaultRoutineInterval)
 		for {
 			select {
 			case now := <-timer.C:
@@ -22,7 +24,7 @@ func init() {
 					routine.timeoutTransitClean()
 				}()
 
-				timer.Reset(time.Second)
+				timer.Reset(DefaultRoutineInterval)
 			}
 		}
 

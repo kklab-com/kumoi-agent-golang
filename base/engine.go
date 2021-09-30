@@ -25,7 +25,8 @@ import (
 var ErrCantGetServiceResource = fmt.Errorf("can't get service resource")
 var ErrCantFinishConnection = fmt.Errorf("can't finish connection")
 var ErrConnectTimeout = fmt.Errorf("connect timeout")
-var ConnectTimeout = 10 * time.Second
+
+const DefaultConnectTimeout = 10 * time.Second
 
 type _EngineHandlerTask struct {
 	websocket.DefaultHandlerTask
@@ -164,7 +165,7 @@ func (e *Engine) connect() SessionFuture {
 
 func (e *Engine) connectTimeoutWatch(f concurrent.Future) {
 	go func() {
-		<-time.NewTimer(ConnectTimeout).C
+		<-time.NewTimer(DefaultConnectTimeout).C
 		f.Completable().Fail(ErrConnectTimeout)
 	}()
 }

@@ -329,7 +329,7 @@ func (c *ChannelPlayer) load(f base.SendFuture) {
 
 	if v := f.Get(); v != nil {
 		go func() {
-			<-time.After(10 * time.Second)
+			<-time.After(base.DefaultTransitTimeout)
 			bwg.Burst()
 		}()
 
