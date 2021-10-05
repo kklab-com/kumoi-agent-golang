@@ -103,9 +103,8 @@ func TestOmega_MultiSession(t *testing.T) {
 				<-time.After(time.Second * 10)
 				if c := wrd.Remain(); c > 0 {
 					assert.Fail(t, fmt.Sprintf("wrd %d", c))
+					println(fmt.Sprintf("%d timeout %d", ii, on))
 				}
-
-				println(fmt.Sprintf("%d timeout %d", ii, on))
 			}(ii)
 
 			og.Agent().OnNotification(func(tf *omega.TransitFrame) {
