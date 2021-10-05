@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/kklab-com/gone-core/channel"
 	websocket "github.com/kklab-com/gone-websocket"
+	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/goth-kkutil/concurrent"
 	kkpanic "github.com/kklab-com/goth-panic"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -288,6 +289,7 @@ func (s *Session) OnError(f func(err error)) {
 
 func (s *Session) invokeOnRead(tf *omega.TransitFrame) {
 	if tf == nil {
+		kklogger.ErrorJ("Session.invokeOnRead", "nil tf")
 		return
 	}
 
