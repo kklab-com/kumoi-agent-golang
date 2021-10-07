@@ -1,9 +1,11 @@
 package base
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
+	value2 "github.com/kklab-com/goth-kkutil/value"
 	kkpanic "github.com/kklab-com/goth-panic"
 )
 
@@ -63,6 +65,7 @@ func (r *_routine) timeoutTransitClean() {
 			session.transitPool.Range(func(key, value interface{}) bool {
 				tpe := value.(*transitPoolEntity)
 				if tpe.timestamp.Add(DefaultTransitTimeout).Before(r.now) {
+					println(fmt.Sprintf("transit timeout, %s", value2.JsonMarshal(tpe.future.SentTransitFrame())))
 					session.transitPool.Delete(key)
 					tpe.future.Completable().Fail(ErrTransitTimeout)
 				}
