@@ -367,8 +367,8 @@ func (s *Session) Send(tf *omega.TransitFrame) SendFuture {
 }
 
 func (s *Session) getSourceSession() *Session {
-	if s.parent != nil {
-		return s.parent
+	if p := s.parent; p != nil {
+		return p
 	}
 
 	return s

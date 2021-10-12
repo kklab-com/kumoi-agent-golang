@@ -35,8 +35,27 @@ type _EngineHandlerTask struct {
 
 func (h *_EngineHandlerTask) WSBinary(ctx channel.HandlerContext, message *websocket.DefaultMessage, params map[string]interface{}) {
 	tf := &omega.TransitFrame{}
-	proto.Unmarshal(message.Encoded(), tf)
+	if err := proto.Unmarshal(message.Encoded(), tf); err != nil {
+		kklogger.ErrorJ("_EngineHandlerTask.WSBinary", err.Error())
+		return
+	}
 
+	if tf.GetTransitId() == 0 {
+		kklogger.ErrorJ("_EngineHandlerTask.WSBinary", "zero transit_id")
+	}
+
+	if stack := tf.GetStack(); stack != nil {
+		for _, tf := range stack.GetFrames() {
+			h._TransitFrameProcess(tf)
+		}
+
+		return
+	}
+
+	h._TransitFrameProcess(tf)
+}
+
+func (h *_EngineHandlerTask) _TransitFrameProcess(tf *omega.TransitFrame) {
 	// hello after connection established
 	if hello := tf.GetHello(); hello != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
 		h.session.subject = hello.GetSubject()
@@ -48,15 +67,6 @@ func (h *_EngineHandlerTask) WSBinary(ctx channel.HandlerContext, message *webso
 	// ping, auto pong reply
 	if ping := tf.GetPing(); ping != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
 		h.session.Send(tf.Clone().AsResponse().RenewTimestamp().SetData(&omega.TransitFrame_Pong{Pong: &omega.Pong{}}))
-	}
-
-	// stack
-	if stack := tf.GetStack(); stack != nil {
-		for _, stf := range stack.GetFrames() {
-			h.session.invokeOnRead(stf)
-		}
-
-		return
 	}
 
 	h.session.invokeOnRead(tf)
