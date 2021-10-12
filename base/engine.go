@@ -41,7 +41,7 @@ func (h *_EngineHandlerTask) WSBinary(ctx channel.HandlerContext, message *webso
 	}
 
 	if tf.GetTransitId() == 0 {
-		kklogger.ErrorJ("_EngineHandlerTask.WSBinary", "zero transit_id")
+		kklogger.ErrorJ("_EngineHandlerTask.WSBinary", fmt.Sprintf("zero transit_id, data: %s", value.JsonMarshal(message.Encoded())))
 	}
 
 	if stack := tf.GetStack(); stack != nil {

@@ -100,7 +100,7 @@ func TestOmega_MultiSession(t *testing.T) {
 			wrd.Add(thread * times)
 
 			go func(i int) {
-				<-time.After(time.Second * 10)
+				<-time.After(time.Second * 30)
 				if c := wrd.Remain(); c > 0 {
 					assert.Fail(t, fmt.Sprintf("wrd %d", c))
 					println(fmt.Sprintf("%d timeout %d", ii, on))
