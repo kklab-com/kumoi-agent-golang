@@ -1,9 +1,12 @@
 package kumoi
 
 import (
+	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -138,4 +141,131 @@ func TestOmegaWriteOnClosed(t *testing.T) {
 	assert.True(t, ch.SendMessage("!!!"))
 	o.Close().Await()
 	assert.False(t, ch.SendMessage("!!!"))
+}
+
+func TestOmega_MultiVoteChannel(t *testing.T) {
+	tCount := int32(0)
+	nCount := int32(0)
+	bwg := concurrent.BurstWaitGroup{}
+	ng := NewOmegaBuilder(conf).Connect().Omega()
+	och := ng.CreateChannel(apirequest.CreateChannel{Name: "TestOmega_MultiVoteChannel_C"}).Join()
+	if och == nil {
+		assert.Fail(t, "create ch nil")
+		return
+	}
+
+	ovt := ng.CreateVote(apirequest.CreateVote{
+		Name:              "TestOmega_MultiVoteChannel_V",
+		VoteOptions:       []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
+		IdleTimeoutSecond: 300,
+	}).Join()
+	if ovt == nil {
+		assert.Fail(t, "create vt nil")
+		return
+	}
+
+	thread := 100
+	times := 20
+	bwg.Add(thread)
+	wjd := concurrent.BurstWaitGroup{}
+	wjd.Add(thread)
+	wcd := concurrent.BurstWaitGroup{}
+	wcd.Add(thread)
+
+	go func() {
+		<-time.After(time.Second * 3)
+		if c := wjd.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("wjd %d", c))
+		}
+
+		wjd.Burst()
+	}()
+
+	for i := 0; i < thread; i++ {
+		go func(ii int) {
+			og := NewOmegaBuilder(conf).Connect().Omega()
+			ch := og.GetChannel(och.Id()).Join("")
+			if ch == nil {
+				assert.Fail(t, "get ch nil")
+				return
+			}
+
+			vt := og.GetVote(ovt.Id()).Join("")
+			if vt == nil {
+				assert.Fail(t, "get vt nil")
+				return
+			}
+
+			wjd.Done()
+			wjd.Wait()
+			on := int32(0)
+			og.Agent().Session().OnRead(func(tf *omega.TransitFrame) {
+				if tf.GetClass() == omega.TransitFrame_ClassError {
+					println(tf.Error())
+				}
+
+				atomic.AddInt32(&tCount, 1)
+			})
+
+			wrd := concurrent.BurstWaitGroup{}
+			wrd.Add(thread * times)
+
+			go func(i int) {
+				<-time.After(time.Second * 30)
+				if c := wrd.Remain(); c > 0 {
+					assert.Fail(t, fmt.Sprintf("wrd %d", c))
+					println(fmt.Sprintf("%d timeout %d", ii, on))
+				}
+			}(ii)
+
+			og.Agent().OnNotification(func(tf *omega.TransitFrame) {
+				atomic.AddInt32(&on, 1)
+				atomic.AddInt32(&nCount, 1)
+				wrd.Done()
+			})
+
+			for ir := 0; ir < times; ir++ {
+				time.Sleep(time.Millisecond * 100)
+				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir)) {
+					assert.Fail(t, "send fail")
+				}
+
+				if !vt.Info().VoteOptions()[rand.Int()%2].Select() {
+					assert.Fail(t, "select fail")
+				}
+
+				if ii == 0 {
+					println(fmt.Sprintf("round %d done", ir+1))
+				}
+			}
+
+			wrd.Wait()
+			wcd.Done()
+			wcd.Wait()
+			assert.False(t, og.IsDisconnected())
+			og.Close().Await()
+			bwg.Done()
+		}(i)
+	}
+
+	go func() {
+		<-time.After(time.Second * 30)
+		if c := bwg.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("bwg %d burst", c))
+		}
+
+		bwg.Burst()
+	}()
+
+	bwg.Wait()
+	assert.Equal(t, int32(thread*((thread+2)*times)+thread*2*2), tCount)
+	assert.Equal(t, int32(thread*thread*times), nCount)
+	println(tCount)
+	println(nCount)
+	<-time.After(time.Second)
+	vtc := ovt.GetCount()
+	assert.Equal(t, 1, int(vtc.VoteOptions[0].Count+vtc.VoteOptions[1].Count))
+	och.Close()
+	ovt.Close()
+	ng.Close().Await()
 }
