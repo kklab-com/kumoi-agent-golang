@@ -258,7 +258,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	}()
 
 	bwg.Wait()
-	assert.Equal(t, int32(thread*((thread+2)*times)+thread*2*2), tCount)
+	assert.Equal(t, int32(thread*((thread+2)*times)), tCount)
 	assert.Equal(t, int32(thread*thread*times), nCount)
 	println(tCount)
 	println(nCount)
