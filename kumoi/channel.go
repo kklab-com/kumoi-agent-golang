@@ -217,6 +217,7 @@ func (c *Channel) init() {
 					}
 				}
 
+				c.watch(rcf)
 				if tfd := tf.GetLeaveChannel(); tfd != nil {
 					c.onLeave()
 					c.deInit()
@@ -226,8 +227,6 @@ func (c *Channel) init() {
 					c.onClose()
 					c.deInit()
 				}
-
-				c.watch(rcf)
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
 					c.info.name = tfd.GetName()

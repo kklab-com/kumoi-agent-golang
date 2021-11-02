@@ -63,6 +63,7 @@ func TestOmega(t *testing.T) {
 	assert.False(t, ch.Close())
 	assert.Nil(t, chInfo.Join(""))
 	assert.True(t, ch.Leave())
+	assert.True(t, leave)
 
 	ch = chf.Join()
 	closed := false
@@ -99,7 +100,6 @@ func TestOmega(t *testing.T) {
 	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().ChannelId())
 	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetCloseChannel().ChannelId())
 	assert.Nil(t, cp.Next())
-	assert.True(t, leave)
 	assert.True(t, closed)
 	assert.True(t, o.Close().Await().IsSuccess())
 }

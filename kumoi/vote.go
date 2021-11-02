@@ -112,26 +112,11 @@ func (v *Vote) SetMetadata(meta *base.Metadata) bool {
 }
 
 func (v *Vote) Leave() bool {
-	f := v.omega.Agent().LeaveVote(v.Info().voteId)
-	f.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			v.onLeave()
-			v.deInit()
-		}
-	}))
-
-	return f.Await().IsSuccess()
+	return v.omega.Agent().LeaveVote(v.Info().voteId).Await().IsSuccess()
 }
 
 func (v *Vote) Close() bool {
-	f := v.omega.Agent().CloseVote(v.Info().voteId, v.key)
-	f.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			v.deInit()
-		}
-	}))
-
-	return f.Await().IsSuccess()
+	return v.omega.Agent().CloseVote(v.Info().voteId, v.key).Await().IsSuccess()
 }
 
 func (v *Vote) SendMessage(msg string) bool {
@@ -201,16 +186,6 @@ func (v *Vote) init() {
 		if tfdEChId := tfdE.Field(0).Elem().FieldByName("VoteId"); tfdEChId.IsValid() && tfdEChId.String() == v.Id() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
-				if tfd := tf.GetCloseVote(); tfd != nil {
-					v.onClose()
-					v.deInit()
-				}
-
-				if tfd := tf.GetLeaveVote(); tfd != nil {
-					v.onLeave()
-					v.deInit()
-				}
-
 				if tfd := tf.GetGetVoteMeta(); tfd != nil {
 					var vtos []VoteOption
 					for _, vto := range tfd.GetVoteOptions() {
@@ -269,11 +244,31 @@ func (v *Vote) init() {
 				}
 
 				v.watch(vf)
+
+				if tfd := tf.GetLeaveVote(); tfd != nil {
+					v.onLeave()
+					v.deInit()
+				}
+
+				if tfd := tf.GetCloseVote(); tfd != nil {
+					v.onClose()
+					v.deInit()
+				}
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetVoteMeta(); tfd != nil {
 					v.info.name = tfd.GetName()
 					v.info.metadata = tfd.GetData()
 					v.info.createdAt = tfd.GetCreatedAt()
+				}
+
+				if tfd := tf.GetLeaveVote(); tfd != nil {
+					v.onLeave()
+					v.deInit()
+				}
+
+				if tfd := tf.GetCloseVote(); tfd != nil {
+					v.onClose()
+					v.deInit()
 				}
 			}
 		}

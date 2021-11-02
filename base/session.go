@@ -311,6 +311,10 @@ func (s *Session) completeWhenResponseAndError(tf *omega.TransitFrame) {
 				tf.GetLeaveChannel().ChannelId = stf.GetChannelId()
 			}
 
+			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveVote(); stf != nil {
+				tf.GetLeaveVote().VoteId = stf.GetVoteId()
+			}
+
 			v.(*transitPoolEntity).future.Completable().Complete(tf)
 		}
 	} else if tf.GetClass() == omega.TransitFrame_ClassError {
