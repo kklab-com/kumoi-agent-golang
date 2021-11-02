@@ -46,30 +46,13 @@ func (h *_EngineHandlerTask) WSBinary(ctx channel.HandlerContext, message *webso
 
 	if stack := tf.GetStack(); stack != nil {
 		for _, tf := range stack.GetFrames() {
-			h._TransitFrameProcess(tf)
+			h.session.transitFramePreProcess(tf)
+			h.session.invokeOnRead(tf)
 		}
-
-		return
+	} else {
+		h.session.transitFramePreProcess(tf)
+		h.session.invokeOnRead(tf)
 	}
-
-	h._TransitFrameProcess(tf)
-}
-
-func (h *_EngineHandlerTask) _TransitFrameProcess(tf *omega.TransitFrame) {
-	// hello after connection established
-	if hello := tf.GetHello(); hello != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
-		h.session.subject = hello.GetSubject()
-		h.session.name = hello.GetSubjectName()
-		h.session.id = hello.GetSessionId()
-		h.session.connectFuture.Completable().Complete(h.session)
-	}
-
-	// ping, auto pong reply
-	if ping := tf.GetPing(); ping != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
-		h.session.Send(tf.Clone().AsResponse().RenewTimestamp().SetData(&omega.TransitFrame_Pong{Pong: &omega.Pong{}}))
-	}
-
-	h.session.invokeOnRead(tf)
 }
 
 func (h *_EngineHandlerTask) WSConnected(ch channel.Channel, req *http2.Request, resp *http2.Response, params map[string]interface{}) {

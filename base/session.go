@@ -124,6 +124,8 @@ type Session struct {
 	metadata                *Metadata
 	connectFuture           concurrent.Future
 	lastActiveTimestamp     time.Time
+	workerStatus            int32
+	transitFrameWorkQueue   concurrent.BlockingQueue
 	onSessionMessageHandler []func(msg *omega.TransitFrame)
 	onReadHandler           []func(tf *omega.TransitFrame)
 	onDisconnectedHandler   []func()
@@ -287,36 +289,71 @@ func (s *Session) OnError(f func(err error)) {
 	s.onErrorHandler = append(s.onErrorHandler, f)
 }
 
+func (s *Session) transitFramePreProcess(tf *omega.TransitFrame) {
+	// hello after connection established
+	if hello := tf.GetHello(); hello != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
+		s.subject = hello.GetSubject()
+		s.name = hello.GetSubjectName()
+		s.id = hello.GetSessionId()
+		s.connectFuture.Completable().Complete(s)
+	}
+
+	// ping, auto pong reply
+	if ping := tf.GetPing(); ping != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
+		s.Send(tf.Clone().AsResponse().RenewTimestamp().SetData(&omega.TransitFrame_Pong{Pong: &omega.Pong{}}))
+	}
+}
+
+func (s *Session) completeWhenResponseAndError(tf *omega.TransitFrame) {
+	if tf.GetClass() == omega.TransitFrame_ClassResponse {
+		if v, f := s.getSourceSession().transitPool.LoadAndDelete(tf.GetTransitId()); f {
+			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveChannel(); stf != nil {
+				tf.GetLeaveChannel().ChannelId = stf.GetChannelId()
+			}
+
+			v.(*transitPoolEntity).future.Completable().Complete(tf)
+		}
+	} else if tf.GetClass() == omega.TransitFrame_ClassError {
+		if v, f := s.getSourceSession().transitPool.LoadAndDelete(tf.GetTransitId()); f {
+			v.(*transitPoolEntity).future.Completable().Fail(tf)
+		}
+	}
+}
+
 func (s *Session) invokeOnRead(tf *omega.TransitFrame) {
 	if tf == nil {
 		kklogger.ErrorJ("Session.invokeOnRead", "nil tf")
 		return
 	}
 
-	switch tf.GetClass() {
-	case omega.TransitFrame_ClassRequest:
-	case omega.TransitFrame_ClassResponse:
-		if v, f := s.getSourceSession().transitPool.LoadAndDelete(tf.GetTransitId()); f {
-			v.(*transitPoolEntity).future.Completable().Complete(tf)
-		}
-	case omega.TransitFrame_ClassNotification:
-		if tf.GetSessionMessage() != nil {
-			for _, f := range s.onSessionMessageHandler {
+	s.completeWhenResponseAndError(tf)
+	s.submitTransitFrameWorker(tf)
+}
+
+func (s *Session) submitTransitFrameWorker(tf *omega.TransitFrame) {
+	s.transitFrameWorkQueue.Push(tf)
+	if atomic.CompareAndSwapInt32(&s.workerStatus, 0, 1) {
+		go s.transitFrameWorker()
+	}
+}
+
+func (s *Session) transitFrameWorker() {
+	for !s.isClosed() {
+		if tf, ok := s.transitFrameWorkQueue.Pop().(*omega.TransitFrame); ok {
+			if tf.GetClass() == omega.TransitFrame_ClassNotification && tf.GetSessionMessage() != nil {
+				for _, f := range s.onSessionMessageHandler {
+					kkpanic.LogCatch(func() {
+						f(tf)
+					})
+				}
+			}
+
+			for _, f := range s.onReadHandler {
 				kkpanic.LogCatch(func() {
 					f(tf)
 				})
 			}
 		}
-	case omega.TransitFrame_ClassError:
-		if v, f := s.getSourceSession().transitPool.LoadAndDelete(tf.GetTransitId()); f {
-			v.(*transitPoolEntity).future.Completable().Fail(tf)
-		}
-	}
-
-	for _, f := range s.onReadHandler {
-		kkpanic.LogCatch(func() {
-			f(tf)
-		})
 	}
 }
 

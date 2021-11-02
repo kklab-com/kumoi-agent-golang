@@ -113,26 +113,11 @@ func (c *Channel) SetMetadata(meta *base.Metadata) bool {
 }
 
 func (c *Channel) Leave() bool {
-	f := c.omega.Agent().LeaveChannel(c.Info().channelId)
-	f.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			c.onLeave()
-			c.deInit()
-		}
-	}))
-
-	return f.Await().IsSuccess()
+	return c.omega.Agent().LeaveChannel(c.Info().channelId).Await().IsSuccess()
 }
 
 func (c *Channel) Close() bool {
-	f := c.omega.Agent().CloseChannel(c.Info().channelId, c.key)
-	f.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			c.deInit()
-		}
-	}))
-
-	return f.Await().IsSuccess()
+	return c.omega.Agent().CloseChannel(c.Info().channelId, c.key).Await().IsSuccess()
 }
 
 func (c *Channel) SendMessage(msg string) bool {
@@ -202,16 +187,6 @@ func (c *Channel) init() {
 		if tfdEChId := tfdE.Field(0).Elem().FieldByName("ChannelId"); tfdEChId.IsValid() && tfdEChId.String() == c.Id() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
-				if tfd := tf.GetCloseChannel(); tfd != nil {
-					c.onClose()
-					c.deInit()
-				}
-
-				if tfd := tf.GetLeaveChannel(); tfd != nil {
-					c.onLeave()
-					c.deInit()
-				}
-
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
 					c.info.name = tfd.GetName()
 					c.info.metadata = tfd.GetData()
@@ -242,12 +217,32 @@ func (c *Channel) init() {
 					}
 				}
 
+				if tfd := tf.GetLeaveChannel(); tfd != nil {
+					c.onLeave()
+					c.deInit()
+				}
+
+				if tfd := tf.GetCloseChannel(); tfd != nil {
+					c.onClose()
+					c.deInit()
+				}
+
 				c.watch(rcf)
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
 					c.info.name = tfd.GetName()
 					c.info.metadata = tfd.GetData()
 					c.info.createdAt = tfd.GetCreatedAt()
+				}
+
+				if tfd := tf.GetLeaveChannel(); tfd != nil {
+					c.onLeave()
+					c.deInit()
+				}
+
+				if tfd := tf.GetCloseChannel(); tfd != nil {
+					c.onClose()
+					c.deInit()
 				}
 			}
 		}
@@ -300,6 +295,7 @@ func (c *ChannelPlayer) load(f base.SendFuture) {
 	refId := ""
 	totalCount := int32(0)
 	loadCount := int32(0)
+	rcf := concurrent.NewFuture(nil)
 	c.omega.onMessageHandlers.Store(fmt.Sprintf("load-%d", transitId), func(tf *omega.TransitFrame) {
 		if tf.GetTransitId() == transitId && tf.GetClass() == omega.TransitFrame_ClassResponse {
 			refId = hex.EncodeToString(tf.GetMessageId())
@@ -315,6 +311,8 @@ func (c *ChannelPlayer) load(f base.SendFuture) {
 			} else {
 				c.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
 			}
+
+			rcf.Completable().Complete(nil)
 		}
 
 		if len(tf.GetRefererMessageId()) > 0 && hex.EncodeToString(tf.GetRefererMessageId()) == refId {
@@ -330,9 +328,11 @@ func (c *ChannelPlayer) load(f base.SendFuture) {
 	if v := f.Get(); v != nil {
 		go func() {
 			<-time.After(base.DefaultTransitTimeout)
+			rcf.Completable().Fail(base.ErrTransitTimeout)
 			bwg.Burst()
 		}()
 
+		rcf.Await()
 		bwg.Wait()
 	} else {
 		c.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
