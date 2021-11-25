@@ -150,3 +150,97 @@ func TestOmega_MultiSession(t *testing.T) {
 	och.Close()
 	ng.Close().Await()
 }
+
+func TestOmega_MultiChannelCount(t *testing.T) {
+	bwg := concurrent.BurstWaitGroup{}
+	ng := NewOmegaBuilder(conf).Connect().Omega()
+	och := ng.CreateChannel(apirequest.CreateChannel{}).Join()
+	if och == nil {
+		assert.Fail(t, "create ch nil")
+		return
+	}
+
+	thread := 100
+	times := 100
+	bwg.Add(thread)
+	wjd := concurrent.BurstWaitGroup{}
+	wjd.Add(thread)
+	wcd := concurrent.BurstWaitGroup{}
+	wcd.Add(thread)
+
+	go func() {
+		<-time.After(time.Second * 3)
+		if c := wjd.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("wjd %d", c))
+		}
+
+		wjd.Burst()
+	}()
+
+	for i := 0; i < thread; i++ {
+		go func(ii int) {
+			og := NewOmegaBuilder(conf).Connect().Omega()
+			ch := og.GetChannel(och.Id()).Join("")
+			wjd.Done()
+			wjd.Wait()
+			if ch == nil {
+				assert.Fail(t, "get ch nil")
+				return
+			}
+
+			on := int32(0)
+			og.Agent().Session().OnRead(func(tf *omega.TransitFrame) {
+				if tf.GetClass() == omega.TransitFrame_ClassError {
+					println(tf.Error())
+				}
+			})
+
+			wrd := concurrent.BurstWaitGroup{}
+			wrd.Add(times)
+
+			go func(i int) {
+				<-time.After(time.Second * 60)
+				if c := wrd.Remain(); c > 0 {
+					assert.Fail(t, fmt.Sprintf("wrd %d", c))
+					println(fmt.Sprintf("%d timeout %d", ii, on))
+				}
+			}(ii)
+
+			og.Agent().OnResponse(func(tf *omega.TransitFrame) {
+				if tf.GetChannelCount() != nil {
+					atomic.AddInt32(&on, 1)
+					wrd.Done()
+				}
+			})
+
+			<-time.After(time.Second * 3)
+			for ir := 0; ir < times; ir++ {
+				time.Sleep(time.Millisecond * 100)
+				assert.Equal(t, thread+1, int(ch.GetCount().Count))
+				if ii == 0 {
+					println(fmt.Sprintf("round %d done", ir+1))
+				}
+			}
+
+			wrd.Wait()
+			wcd.Done()
+			wcd.Wait()
+			assert.False(t, og.IsDisconnected())
+			og.Close().Await()
+			bwg.Done()
+		}(i)
+	}
+
+	go func() {
+		<-time.After(time.Second * 60)
+		if c := bwg.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("bwg %d burst", c))
+		}
+
+		bwg.Burst()
+	}()
+
+	bwg.Wait()
+	och.Close()
+	ng.Close().Await()
+}
