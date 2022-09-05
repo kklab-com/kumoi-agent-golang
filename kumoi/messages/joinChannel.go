@@ -14,6 +14,7 @@ type JoinChannel struct {
 	SubjectName     string
 	SessionMetadata *base.Metadata
 	RoleIndicator   omega.Role
+	Skill           *omega.Skill
 }
 
 func (c *JoinChannel) ParseTransitFrame(tf *omega.TransitFrame) {
@@ -24,6 +25,6 @@ func (c *JoinChannel) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SubjectName = tf.GetJoinChannel().GetSubjectName()
 	c.SessionMetadata = tf.GetJoinChannel().GetSessionMetadata()
 	c.RoleIndicator = tf.GetJoinChannel().GetRoleIndicator()
+	c.Skill = tf.GetJoinChannel().GetSkill()
 	c.ChannelTransitFrame.ParseTransitFrame(tf)
-	return
 }

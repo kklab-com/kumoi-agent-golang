@@ -28,5 +28,4 @@ func (c *GetVoteMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Name = tf.GetGetVoteMeta().GetName()
 	c.CreatedAt = tf.GetGetChannelMeta().GetCreatedAt()
 	c.VoteTransitFrame.ParseTransitFrame(tf)
-	return
 }

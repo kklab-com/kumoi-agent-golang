@@ -96,7 +96,7 @@ func (c *Channel) Name() string {
 }
 
 func (c *Channel) SetName(name string) bool {
-	if c.omega.Agent().SetChannelMetadata(c.Info().channelId, name, nil).Await().IsSuccess() {
+	if c.omega.Agent().SetChannelMetadata(c.Info().channelId, name, nil, nil).Await().IsSuccess() {
 		c.info.name = name
 		return true
 	}
@@ -109,7 +109,11 @@ func (c *Channel) Metadata() *base.Metadata {
 }
 
 func (c *Channel) SetMetadata(meta *base.Metadata) bool {
-	return c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", meta).Await().IsSuccess()
+	return c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", meta, nil).Await().IsSuccess()
+}
+
+func (c *Channel) SetSkill(skill *omega.Skill) bool {
+	return c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", nil, skill).Await().IsSuccess()
 }
 
 func (c *Channel) Leave() bool {
@@ -120,12 +124,12 @@ func (c *Channel) Close() bool {
 	return c.omega.Agent().CloseChannel(c.Info().channelId, c.key).Await().IsSuccess()
 }
 
-func (c *Channel) SendMessage(msg string) bool {
-	return c.omega.Agent().ChannelMessage(c.Info().channelId, msg).Await().IsSuccess()
+func (c *Channel) SendMessage(msg string, meta *base.Metadata) bool {
+	return c.omega.Agent().ChannelMessage(c.Info().channelId, msg, meta).Await().IsSuccess()
 }
 
-func (c *Channel) SendOwnerMessage(msg string) bool {
-	return c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg).Await().IsSuccess()
+func (c *Channel) SendOwnerMessage(msg string, meta *base.Metadata) bool {
+	return c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, meta).Await().IsSuccess()
 }
 
 func (c *Channel) GetCount() *messages.ChannelCount {

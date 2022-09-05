@@ -115,7 +115,7 @@ func TestOmega_MultiSession(t *testing.T) {
 
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				if ch.SendMessage(fmt.Sprintf("%d !!!", ir)) == false {
+				if ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil) == false {
 					assert.Fail(t, "send fail")
 				}
 

@@ -8,5 +8,4 @@ type CloseVote struct {
 
 func (c *CloseVote) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.VoteTransitFrame.ParseTransitFrame(tf)
-	return
 }

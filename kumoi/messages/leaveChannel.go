@@ -10,5 +10,4 @@ type LeaveChannel struct {
 func (c *LeaveChannel) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SessionId = tf.GetLeaveChannel().GetSessionId()
 	c.ChannelTransitFrame.ParseTransitFrame(tf)
-	return
 }

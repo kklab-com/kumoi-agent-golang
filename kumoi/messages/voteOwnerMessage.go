@@ -10,5 +10,4 @@ type VoteOwnerMessage struct {
 func (c *VoteOwnerMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Message = tf.GetVoteOwnerMessage().GetMessage()
 	c.VoteTransitFrame.ParseTransitFrame(tf)
-	return
 }

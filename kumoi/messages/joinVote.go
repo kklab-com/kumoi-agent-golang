@@ -17,5 +17,4 @@ func (c *JoinVote) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SessionId = tf.GetJoinVote().GetSessionId()
 	c.SessionMetadata = tf.GetJoinVote().GetSessionMetadata()
 	c.VoteTransitFrame.ParseTransitFrame(tf)
-	return
 }

@@ -12,5 +12,4 @@ func (c *Time) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.UnixNano = tf.GetServerTime().GetUnixNano()
 	c.UnixTimestamp = tf.GetServerTime().GetUnixTimestamp()
 	c.transitFrame.ParseTransitFrame(tf)
-	return
 }

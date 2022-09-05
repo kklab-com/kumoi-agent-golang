@@ -1,6 +1,9 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
+import (
+	"github.com/kklab-com/kumoi-agent-golang/base"
+	omega "github.com/kklab-com/kumoi-protobuf-golang"
+)
 
 type ChannelOwnerMessage struct {
 	ChannelTransitFrame
@@ -8,6 +11,8 @@ type ChannelOwnerMessage struct {
 	Message     string
 	Subject     string
 	SubjectName string
+	Metadata    *base.Metadata
+	Skill       *omega.Skill
 }
 
 func (c *ChannelOwnerMessage) ParseTransitFrame(tf *omega.TransitFrame) {
@@ -15,6 +20,7 @@ func (c *ChannelOwnerMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Message = tf.GetChannelOwnerMessage().GetMessage()
 	c.Subject = tf.GetChannelOwnerMessage().GetSubject()
 	c.SubjectName = tf.GetChannelOwnerMessage().GetSubjectName()
+	c.Metadata = tf.GetChannelOwnerMessage().GetMetadata()
+	c.Skill = tf.GetChannelOwnerMessage().GetSkill()
 	c.ChannelTransitFrame.ParseTransitFrame(tf)
-	return
 }

@@ -58,8 +58,8 @@ func TestOmega(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.NotEqual(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendMessage("SendMessage"))
-	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage"))
+	assert.True(t, ch.SendMessage("SendMessage", nil))
+	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
 	assert.False(t, ch.Close())
 	assert.Nil(t, chInfo.Join(""))
 	assert.True(t, ch.Leave())
@@ -77,7 +77,7 @@ func TestOmega(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.Equal(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendOwnerMessage("SendOwnerMessage"))
+	assert.True(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
 	assert.True(t, ch.SetName("new_channel_name"))
 	println("wait for replay")
 	<-time.After(2 * time.Second)
@@ -138,9 +138,9 @@ func TestOmegaWriteOnClosed(t *testing.T) {
 	chResp := o.CreateChannel(apirequest.CreateChannel{})
 	chInfo := chResp.Info()
 	ch := chInfo.Join("")
-	assert.True(t, ch.SendMessage("!!!"))
+	assert.True(t, ch.SendMessage("!!!", nil))
 	o.Close().Await()
-	assert.False(t, ch.SendMessage("!!!"))
+	assert.False(t, ch.SendMessage("!!!", nil))
 }
 
 func TestOmega_MultiVoteChannel(t *testing.T) {
@@ -226,7 +226,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir)) {
+				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil) {
 					assert.Fail(t, "send fail")
 				}
 

@@ -237,8 +237,8 @@ func (a *Agent) GetChannelMetadata(channelId string) SendFuture {
 	return a.session.sendRequest(&omega.TransitFrame_GetChannelMeta{GetChannelMeta: &omega.GetChannelMeta{ChannelId: channelId}})
 }
 
-func (a *Agent) SetChannelMetadata(channelId string, name string, metadata *Metadata) SendFuture {
-	return a.session.sendRequest(&omega.TransitFrame_SetChannelMeta{SetChannelMeta: &omega.SetChannelMeta{ChannelId: channelId, Name: name, Data: metadata}})
+func (a *Agent) SetChannelMetadata(channelId string, name string, metadata *Metadata, skill *omega.Skill) SendFuture {
+	return a.session.sendRequest(&omega.TransitFrame_SetChannelMeta{SetChannelMeta: &omega.SetChannelMeta{ChannelId: channelId, Name: name, Data: metadata, Skill: skill}})
 }
 
 func (a *Agent) JoinChannel(channelId string, key string) SendFuture {
@@ -253,16 +253,16 @@ func (a *Agent) CloseChannel(channelId, key string) SendFuture {
 	return a.session.sendRequest(&omega.TransitFrame_CloseChannel{CloseChannel: &omega.CloseChannel{ChannelId: channelId, Key: key}})
 }
 
-func (a *Agent) ChannelMessage(channelId string, message string) SendFuture {
-	return a.session.sendRequest(&omega.TransitFrame_ChannelMessage{ChannelMessage: &omega.ChannelMessage{ChannelId: channelId, Message: message}})
+func (a *Agent) ChannelMessage(channelId string, message string, metadata *Metadata) SendFuture {
+	return a.session.sendRequest(&omega.TransitFrame_ChannelMessage{ChannelMessage: &omega.ChannelMessage{ChannelId: channelId, Message: message, Metadata: metadata}})
 }
 
 func (a *Agent) ChannelCount(channelId string) SendFuture {
 	return a.session.sendRequest(&omega.TransitFrame_ChannelCount{ChannelCount: &omega.ChannelCount{ChannelId: channelId}})
 }
 
-func (a *Agent) ChannelOwnerMessage(channelId string, message string) SendFuture {
-	return a.session.sendRequest(&omega.TransitFrame_ChannelOwnerMessage{ChannelOwnerMessage: &omega.ChannelOwnerMessage{ChannelId: channelId, Message: message}})
+func (a *Agent) ChannelOwnerMessage(channelId string, message string, metadata *Metadata) SendFuture {
+	return a.session.sendRequest(&omega.TransitFrame_ChannelOwnerMessage{ChannelOwnerMessage: &omega.ChannelOwnerMessage{ChannelId: channelId, Message: message, Metadata: metadata}})
 }
 
 func (a *Agent) ReplayChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture {

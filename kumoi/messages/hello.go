@@ -14,5 +14,4 @@ func (c *Hello) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Subject = tf.GetHello().GetSubject()
 	c.SubjectName = tf.GetHello().GetSubjectName()
 	c.transitFrame.ParseTransitFrame(tf)
-	return
 }

@@ -15,5 +15,4 @@ func (c *SetVoteMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Data = tf.GetSetVoteMeta().GetData()
 	c.Name = tf.GetSetVoteMeta().GetName()
 	c.VoteTransitFrame.ParseTransitFrame(tf)
-	return
 }
