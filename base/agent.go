@@ -1,8 +1,8 @@
 package base
 
 import (
+	concurrent "github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
-	"github.com/kklab-com/goth-kkutil/concurrent"
 	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -357,10 +357,14 @@ func (b *AgentBuilder) Connect() AgentFuture {
 	}
 
 	sf := NewEngine(b.config).connect()
-	af := &DefaultAgentFuture{Future: concurrent.NewFuture(sf.Ctx()), sf: sf}
+	af := &DefaultAgentFuture{Future: concurrent.NewFuture(), sf: sf}
 	af.sf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			af.Completable().Complete(NewAgent(af.sf.Get().(*Session)))
+		} else if f.IsCancelled() {
+			af.Completable().Cancel()
+		} else if f.IsFail() {
+			af.Completable().Fail(f.Error())
 		}
 	}))
 

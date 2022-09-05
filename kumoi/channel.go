@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/goth-kkutil/hex"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
@@ -293,12 +293,12 @@ func (c *ChannelPlayer) Next() TFPlayerEntity {
 }
 
 func (c *ChannelPlayer) load(f base.SendFuture) {
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	transitId := f.SentTransitFrame().GetTransitId()
 	refId := ""
 	totalCount := int32(0)
 	loadCount := int32(0)
-	rcf := concurrent.NewFuture(nil)
+	rcf := concurrent.NewFuture()
 	c.omega.onMessageHandlers.Store(fmt.Sprintf("load-%d", transitId), func(tf *omega.TransitFrame) {
 		if tf.GetTransitId() == transitId && tf.GetClass() == omega.TransitFrame_ClassResponse {
 			refId = hex.EncodeToString(tf.GetMessageId())
@@ -332,7 +332,7 @@ func (c *ChannelPlayer) load(f base.SendFuture) {
 		go func() {
 			<-time.After(base.DefaultTransitTimeout)
 			rcf.Completable().Fail(base.ErrTransitTimeout)
-			bwg.Burst()
+			bwg.Reset()
 		}()
 
 		rcf.Await()

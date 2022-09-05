@@ -1,13 +1,12 @@
 package kumoi
 
 import (
-	"context"
 	"math"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
@@ -35,7 +34,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 		leave = true
 	})
 
-	cmMeta := concurrent.NewFuture(context.Background())
+	cmMeta := concurrent.NewFuture()
 	ch.Watch(func(msg messages.ChannelFrame) {
 		println(reflect.ValueOf(msg).Elem().Type().Name())
 		switch v := msg.(type) {

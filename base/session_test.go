@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/base/apiresponse"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -81,7 +81,7 @@ func TestSession(t *testing.T) {
 	session.Disconnect().Await()
 	assert.True(t, session.isClosed())
 
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		bwg.Add(1)
 		go func(i int) {
@@ -96,7 +96,7 @@ func TestSession(t *testing.T) {
 
 	go func() {
 		<-time.After(10 * time.Second)
-		bwg.Burst()
+		bwg.Reset()
 	}()
 
 	remoteSession.Disconnect().Await()

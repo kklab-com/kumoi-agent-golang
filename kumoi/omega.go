@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/kklab-com/gone-core/channel"
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
@@ -20,7 +20,7 @@ type OmegaFuture interface {
 
 type DefaultOmegaFuture struct {
 	concurrent.Future
-	sf base.AgentFuture
+	af base.AgentFuture
 }
 
 func (f *DefaultOmegaFuture) Omega() *Omega {
@@ -260,7 +260,7 @@ func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) CreateChan
 	cf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			ccf.Completable().Complete(f.Get())
-		} else if f.IsError() {
+		} else if f.IsFail() {
 			ccf.Completable().Fail(f.Error())
 		} else if f.IsCancelled() {
 			ccf.Completable().Cancel()
@@ -316,7 +316,7 @@ func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
 	vf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			cvf.Completable().Complete(f.Get())
-		} else if f.IsError() {
+		} else if f.IsFail() {
 			cvf.Completable().Fail(f.Error())
 		} else if f.IsCancelled() {
 			cvf.Completable().Cancel()
@@ -347,10 +347,14 @@ func (b *OmegaBuilder) Connect() OmegaFuture {
 	}
 
 	af := base.NewAgentBuilder(b.config).Connect()
-	of := &DefaultOmegaFuture{Future: concurrent.NewFuture(af.Ctx()), sf: af}
-	of.sf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	of := &DefaultOmegaFuture{Future: concurrent.NewFuture(), af: af}
+	of.af.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
-			of.Completable().Complete((&Omega{}).initWithAgent(of.sf.Get().(*base.Agent)))
+			of.Completable().Complete((&Omega{}).initWithAgent(of.af.Get().(*base.Agent)))
+		} else if f.IsCancelled() {
+			of.Completable().Cancel()
+		} else if f.IsFail() {
+			of.Completable().Fail(f.Error())
 		}
 	}))
 

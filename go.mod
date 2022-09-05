@@ -4,13 +4,15 @@ go 1.18
 
 require (
 	github.com/golang/protobuf v1.5.2
-	github.com/kklab-com/gone-core v1.0.15
-	github.com/kklab-com/gone-http v1.0.15
+	github.com/kklab-com/gone-core v1.1.9
+	github.com/kklab-com/gone-http v1.1.9
 	github.com/kklab-com/gone-httpheadername v0.0.0-20210329135429-db3f484c9117
 	github.com/kklab-com/gone-httpstatus v0.0.0-20210329135420-5f09bea125ca
-	github.com/kklab-com/gone-websocket v1.0.15
+	github.com/kklab-com/gone-websocket v1.1.9
+	github.com/kklab-com/goth-bytebuf v1.0.1
+	github.com/kklab-com/goth-concurrent v1.1.0
 	github.com/kklab-com/goth-kklogger v1.0.1
-	github.com/kklab-com/goth-kkutil v1.0.12
+	github.com/kklab-com/goth-kkutil v1.3.2
 	github.com/kklab-com/goth-panic v1.0.3
 	github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20220615035929-b4c574bbf29a
 	github.com/pkg/errors v0.8.0
@@ -34,7 +36,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/kklab-com/goth-base62 v1.0.0 // indirect
 	github.com/kklab-com/goth-erresponse v1.0.0 // indirect
-	github.com/kklab-com/goth-kkdatastore v0.0.0-20211119160428-474ac67a3ef2 // indirect
+	github.com/kklab-com/goth-kkdatastore v0.0.0-20220207053650-75eea60fcd9b // indirect
 	github.com/kklab-com/goth-kkerror v0.0.0-20210329135318-f6c51d7cfc8c // indirect
 	github.com/kklab-com/goth-kksecret v0.0.0-20210515110028-29a17b1b6d85 // indirect
 	github.com/lib/pq v1.1.1 // indirect

@@ -3,7 +3,7 @@ package kumoi
 import (
 	"reflect"
 
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"

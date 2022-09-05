@@ -12,9 +12,9 @@ import (
 	httpheadername "github.com/kklab-com/gone-httpheadername"
 	httpstatus "github.com/kklab-com/gone-httpstatus"
 	websocket "github.com/kklab-com/gone-websocket"
+	"github.com/kklab-com/goth-bytebuf"
+	"github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
-	"github.com/kklab-com/goth-kkutil/buf"
-	"github.com/kklab-com/goth-kkutil/concurrent"
 	"github.com/kklab-com/goth-kkutil/value"
 	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
@@ -140,11 +140,11 @@ func (e *Engine) connect() SessionFuture {
 		})).
 		Connect(nil, &websocket.WSCustomConnectConfig{Url: e.wsUri, Header: header})
 
-	sessionFuture := concurrent.NewFuture(nil)
+	sessionFuture := concurrent.NewFuture()
 	session.connectFuture = sessionFuture
 	e.connectTimeoutWatch(sessionFuture)
 	chFuture.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsError() {
+		if f.IsFail() {
 			sessionFuture.Completable().Fail(f.Error())
 		} else if f.IsCancelled() {
 			sessionFuture.Completable().Cancel()
@@ -179,7 +179,7 @@ func (e *Engine) createChannel(createChannel apirequest.CreateChannel) concurren
 	header := http.Header{}
 	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.config.Token))
 	req.Header = header
-	future := concurrent.NewFuture(nil)
+	future := concurrent.NewFuture()
 	go func(future concurrent.Future) {
 		if resp, err := http.DefaultClient.Do(req); err != nil {
 			kklogger.WarnJ("base:Engine.createChannel", err.Error())
@@ -219,7 +219,7 @@ func (e *Engine) createVote(createVote apirequest.CreateVote) concurrent.Future 
 	header := http.Header{}
 	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.config.Token))
 	req.Header = header
-	future := concurrent.NewFuture(nil)
+	future := concurrent.NewFuture()
 	go func(future concurrent.Future) {
 		if resp, err := http.DefaultClient.Do(req); err != nil {
 			kklogger.WarnJ("base:Engine.createVote", err.Error())

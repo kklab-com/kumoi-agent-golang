@@ -8,8 +8,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/kklab-com/gone-core/channel"
 	websocket "github.com/kklab-com/gone-websocket"
+	"github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
-	"github.com/kklab-com/goth-kkutil/concurrent"
 	kkpanic "github.com/kklab-com/goth-panic"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/pkg/errors"
@@ -92,8 +92,8 @@ func (f *DefaultSessionFuture) Session() *Session {
 	return nil
 }
 
-func (f *DefaultSessionFuture) Completable() concurrent.CompletableFuture {
-	return f.Future.(concurrent.CompletableFuture)
+func (f *DefaultSessionFuture) Completable() concurrent.Completable {
+	return f.Future.Completable()
 }
 
 type RemoteSessionFuture interface {
@@ -134,7 +134,7 @@ type Session struct {
 }
 
 func (s *Session) newRemoteSession(sessionId string) RemoteSessionFuture {
-	rsf := &DefaultRemoteSessionFuture{concurrent.NewFuture(nil)}
+	rsf := &DefaultRemoteSessionFuture{concurrent.NewFuture()}
 	f := s.sendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{SessionId: sessionId}})
 	f.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
@@ -169,7 +169,7 @@ func (s *Session) newRemoteSession(sessionId string) RemoteSessionFuture {
 			}
 		} else if f.IsCancelled() {
 			rsf.Completable().Cancel()
-		} else if f.IsError() {
+		} else if f.IsFail() {
 			rsf.Completable().Fail(ErrSessionNotFound)
 		}
 	}))
@@ -380,12 +380,12 @@ func (s *Session) Send(tf *omega.TransitFrame) SendFuture {
 
 	var rf SendFuture
 	rf = &DefaultSendFuture{
-		Future: concurrent.NewFuture(nil),
+		Future: concurrent.NewFuture(),
 		tf:     stf,
 	}
 
 	sf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsError() {
+		if f.IsFail() {
 			rf.Completable().Fail(f.Error())
 		}
 	}))

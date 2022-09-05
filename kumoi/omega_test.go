@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
@@ -106,11 +106,11 @@ func TestOmega(t *testing.T) {
 
 func TestOmegaDisconnect(t *testing.T) {
 	o := NewOmegaBuilder(conf).Connect().Omega()
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	go func() {
 		<-time.After(3 * time.Second)
 		if bwg.Remain() > 0 {
-			bwg.Burst()
+			bwg.Reset()
 			assert.Fail(t, "disconnected not invoke")
 		}
 	}()
@@ -146,7 +146,7 @@ func TestOmegaWriteOnClosed(t *testing.T) {
 func TestOmega_MultiVoteChannel(t *testing.T) {
 	tCount := int32(0)
 	nCount := int32(0)
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	ng := NewOmegaBuilder(conf).Connect().Omega()
 	och := ng.CreateChannel(apirequest.CreateChannel{Name: "TestOmega_MultiVoteChannel_C"}).Join()
 	if och == nil {
@@ -167,9 +167,9 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	thread := 100
 	times := 20
 	bwg.Add(thread)
-	wjd := concurrent.BurstWaitGroup{}
+	wjd := concurrent.WaitGroup{}
 	wjd.Add(thread)
-	wcd := concurrent.BurstWaitGroup{}
+	wcd := concurrent.WaitGroup{}
 	wcd.Add(thread)
 
 	go func() {
@@ -178,7 +178,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("wjd %d", c))
 		}
 
-		wjd.Burst()
+		wjd.Reset()
 	}()
 
 	for i := 0; i < thread; i++ {
@@ -207,7 +207,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 				atomic.AddInt32(&tCount, 1)
 			})
 
-			wrd := concurrent.BurstWaitGroup{}
+			wrd := concurrent.WaitGroup{}
 			wrd.Add(thread * times)
 
 			go func(i int) {
@@ -254,7 +254,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("bwg %d burst", c))
 		}
 
-		bwg.Burst()
+		bwg.Reset()
 	}()
 
 	bwg.Wait()

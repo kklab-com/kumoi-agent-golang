@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kklab-com/goth-kkutil/concurrent"
+	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -21,7 +21,7 @@ func TestOmega_RemoteSession(t *testing.T) {
 	got := false
 	gc := 0
 
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	ro.GetAgentSession().OnMessage(func(msg *messages.SessionMessage) {
 		println(msg.Message)
 		bwg.Done()
@@ -38,7 +38,7 @@ func TestOmega_RemoteSession(t *testing.T) {
 
 	go func() {
 		<-time.After(time.Second)
-		bwg.Burst()
+		bwg.Reset()
 	}()
 
 	bwg.Wait()
@@ -51,7 +51,7 @@ func TestOmega_RemoteSession(t *testing.T) {
 func TestOmega_MultiSession(t *testing.T) {
 	tCount := int32(0)
 	nCount := int32(0)
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	ng := NewOmegaBuilder(conf).Connect().Omega()
 	och := ng.CreateChannel(apirequest.CreateChannel{}).Join()
 	if och == nil {
@@ -62,9 +62,9 @@ func TestOmega_MultiSession(t *testing.T) {
 	thread := 100
 	times := 20
 	bwg.Add(thread)
-	wjd := concurrent.BurstWaitGroup{}
+	wjd := concurrent.WaitGroup{}
 	wjd.Add(thread)
-	wcd := concurrent.BurstWaitGroup{}
+	wcd := concurrent.WaitGroup{}
 	wcd.Add(thread)
 
 	go func() {
@@ -73,7 +73,7 @@ func TestOmega_MultiSession(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("wjd %d", c))
 		}
 
-		wjd.Burst()
+		wjd.Reset()
 	}()
 
 	for i := 0; i < thread; i++ {
@@ -96,7 +96,7 @@ func TestOmega_MultiSession(t *testing.T) {
 				atomic.AddInt32(&tCount, 1)
 			})
 
-			wrd := concurrent.BurstWaitGroup{}
+			wrd := concurrent.WaitGroup{}
 			wrd.Add(thread * times)
 
 			go func(i int) {
@@ -139,7 +139,7 @@ func TestOmega_MultiSession(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("bwg %d burst", c))
 		}
 
-		bwg.Burst()
+		bwg.Reset()
 	}()
 
 	bwg.Wait()
@@ -152,7 +152,7 @@ func TestOmega_MultiSession(t *testing.T) {
 }
 
 func TestOmega_MultiChannelCount(t *testing.T) {
-	bwg := concurrent.BurstWaitGroup{}
+	bwg := concurrent.WaitGroup{}
 	ng := NewOmegaBuilder(conf).Connect().Omega()
 	och := ng.CreateChannel(apirequest.CreateChannel{}).Join()
 	if och == nil {
@@ -163,9 +163,9 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 	thread := 100
 	times := 100
 	bwg.Add(thread)
-	wjd := concurrent.BurstWaitGroup{}
+	wjd := concurrent.WaitGroup{}
 	wjd.Add(thread)
-	wcd := concurrent.BurstWaitGroup{}
+	wcd := concurrent.WaitGroup{}
 	wcd.Add(thread)
 
 	go func() {
@@ -174,7 +174,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("wjd %d", c))
 		}
 
-		wjd.Burst()
+		wjd.Reset()
 	}()
 
 	for i := 0; i < thread; i++ {
@@ -195,7 +195,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 				}
 			})
 
-			wrd := concurrent.BurstWaitGroup{}
+			wrd := concurrent.WaitGroup{}
 			wrd.Add(times)
 
 			go func(i int) {
@@ -237,7 +237,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("bwg %d burst", c))
 		}
 
-		bwg.Burst()
+		bwg.Reset()
 	}()
 
 	bwg.Wait()
