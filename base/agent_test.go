@@ -1,91 +1,110 @@
 package base
 
-//func TestAgent(t *testing.T) {
-//	appId := os.Getenv("TEST_APP_ID")
-//	token := os.Getenv("TEST_TOKEN")
-//	domain := os.Getenv("TEST_DOMAIN")
-//	conf := NewConfig(appId, token)
-//	conf.Domain = domain
-//	e := NewEngine(conf)
-//	rmsg := "test message"
-//	remoteSession := e.connect().Session()
-//	session := e.connect().Session()
-//	assert.NotEmpty(t, session)
-//	assert.False(t, session.IsClosed())
-//	assert.NotEmpty(t, session.GetId())
-//	assert.NotEmpty(t, session.Ping().Get())
-//	rAgent := NewAgent(remoteSession)
-//	agent := NewAgent(session)
-//	rs := agent.GetRemoteSession(remoteSession.GetId()).Session()
-//	assert.Equal(t, remoteSession.GetId(), rs.GetId())
-//	remoteSession.OnMessage(func(msg *omega.TransitFrame) {
-//		println(fmt.Sprintf("remote get to remote: %s", msg.GetSessionMessage().Message))
-//		assert.Equal(t, rmsg, msg.GetSessionMessage().Message)
-//	})
-//
-//	rs.SendMessage(rmsg).Await()
-//	agent.SessionMessage(remoteSession.GetId(), rmsg).Await()
-//
-//	rs.OnMessage(func(msg *omega.TransitFrame) {
-//		println(fmt.Sprintf("local get to local: %s", msg.GetSessionMessage().Message))
-//		assert.Equal(t, rmsg, msg.GetSessionMessage().Message)
-//	})
-//
-//	rAgent.GetRemoteSession(session.GetId()).Session().SendMessage(rmsg)
-//	rAgent.SessionMessage(session.GetId(), rmsg).Await()
-//	if f := e.createChannel(apirequest.CreateChannel{Name: "kumoi-agent-golang_test_ch"}).Await(); f.Get() != nil {
-//		resp := f.Get().(*apiresponse.CreateChannel)
-//		assert.Equal(t, "kumoi-agent-golang_test_ch", resp.Name)
-//		assert.NotEmpty(t, resp.AppId)
-//		assert.NotEmpty(t, resp.ChannelId)
-//		assert.NotEmpty(t, resp.OwnerKey)
-//		assert.NotEmpty(t, resp.ParticipatorKey)
-//		assert.Equal(t, 60, resp.IdleTimeoutSecond)
-//		assert.Empty(t, agent.CloseChannel(resp.ChannelId, "").Get())
-//		assert.NotEmpty(t, agent.CloseChannel(resp.ChannelId, resp.OwnerKey).Get())
-//		assert.Empty(t, agent.CloseChannel(resp.ChannelId, resp.OwnerKey).Get())
-//	} else {
-//		assert.Error(t, f.Error())
-//	}
-//
-//	if f := e.createVote(apirequest.CreateVote{Name: "kumoi-agent-golang_test_vt", VoteOptions: []apirequest.CreateVoteOption{{Name: "vto1"}, {Name: "vto2"}}}).Await(); f.Get() != nil {
-//		resp := f.Get().(*apiresponse.CreateVote)
-//		assert.Equal(t, "kumoi-agent-golang_test_vt", resp.Name)
-//		assert.NotEmpty(t, resp.AppId)
-//		assert.NotEmpty(t, resp.VoteId)
-//		assert.NotEmpty(t, resp.Key)
-//		assert.Equal(t, 2, len(resp.VoteOptions))
-//		assert.Equal(t, "vto1", resp.VoteOptions[0].Name)
-//		assert.NotEmpty(t, resp.VoteOptions[0].Id)
-//		assert.Equal(t, 60, resp.IdleTimeoutSecond)
-//		assert.Empty(t, agent.CloseVote(resp.VoteId, "").Get())
-//		assert.NotEmpty(t, agent.CloseVote(resp.VoteId, resp.Key).Get())
-//		assert.Empty(t, agent.CloseVote(resp.VoteId, resp.Key).Get())
-//	} else {
-//		assert.Error(t, f.Error())
-//	}
-//
-//	session.Close().Await()
-//	assert.True(t, session.IsClosed())
-//
-//	bwg := concurrent.WaitGroup{}
-//	for i := 0; i < 10; i++ {
-//		bwg.Add(1)
-//		go func(i int) {
-//			session := e.connect().Session()
-//			assert.NotEmpty(t, session)
-//			assert.False(t, session.IsClosed())
-//			session.Close().Await()
-//			println(fmt.Sprintf("session connected %d", i))
-//			bwg.Done()
-//		}(i)
-//	}
-//
-//	go func() {
-//		<-time.After(10 * time.Second)
-//		bwg.Reset()
-//	}()
-//
-//	remoteSession.Close().Await()
-//	bwg.Wait()
-//}
+import (
+	"testing"
+
+	concurrent "github.com/kklab-com/goth-concurrent"
+	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
+	"github.com/kklab-com/kumoi-agent-golang/base/apiresponse"
+	omega "github.com/kklab-com/kumoi-protobuf-golang"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestAgentMessage(t *testing.T) {
+	rmsg := "test message"
+	rag := agentBuilder.Connect().Agent()
+	ag := agentBuilder.Connect().Agent()
+	assert.NotEmpty(t, ag)
+	assert.False(t, ag.Session().IsClosed())
+	assert.NotEmpty(t, ag.Session().GetId())
+	assert.NotEmpty(t, ag.Ping().Get())
+	vf := concurrent.NewFuture()
+	rag.OnSessionMessage(func(msg *omega.TransitFrame) {
+		assert.Equal(t, rmsg, msg.GetSessionMessage().Message)
+		vf.Completable().Complete(nil)
+	})
+
+	ag.SessionMessage(rag.Session().GetId(), rmsg)
+	assert.True(t, vf.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ag.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, rag.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestAgent(t *testing.T) {
+	rag := agentBuilder.Connect().Agent()
+	ag := agentBuilder.Connect().Agent()
+	assert.NotEmpty(t, ag)
+	assert.False(t, ag.Session().IsClosed())
+	assert.NotEmpty(t, ag.Session().GetId())
+	assert.NotEmpty(t, ag.Ping().Get())
+
+	if f := ag.CreateChannel(apirequest.CreateChannel{Name: "kumoi-agent-golang_test_ch", IdleTimeoutSecond: 60}).AwaitTimeout(Timeout); f.Get() != nil {
+		resp := f.Get().(*apiresponse.CreateChannel)
+		assert.Equal(t, "kumoi-agent-golang_test_ch", resp.Name)
+		assert.NotEmpty(t, resp.AppId)
+		assert.NotEmpty(t, resp.ChannelId)
+		assert.NotEmpty(t, resp.OwnerKey)
+		assert.NotEmpty(t, resp.ParticipatorKey)
+		assert.Equal(t, 60, resp.IdleTimeoutSecond)
+		assert.Equal(t, omega.Role_RoleOwner, ag.JoinChannel(resp.ChannelId, resp.OwnerKey).TransitFrame().GetJoinChannel().GetRoleIndicator())
+		assert.Equal(t, omega.Role_RoleParticipator, rag.JoinChannel(resp.ChannelId, "").TransitFrame().GetJoinChannel().GetRoleIndicator())
+		vf1, vf2, vf3, vf4 := concurrent.NewFuture(), concurrent.NewFuture(), concurrent.NewFuture(), concurrent.NewFuture()
+		rag.OnMessage(func(tf *omega.TransitFrame) {
+			if msg := tf.GetChannelOwnerMessage(); msg != nil && msg.Message == "OWNER" {
+				vf1.Completable().Complete(nil)
+			}
+		})
+
+		rag.OnNotification(func(tf *omega.TransitFrame) {
+			if msg := tf.GetChannelOwnerMessage(); msg != nil && msg.Message == "OWNER" {
+				vf2.Completable().Complete(nil)
+			}
+		})
+
+		ag.OnResponse(func(tf *omega.TransitFrame) {
+			if tf.GetSetChannelMeta() != nil {
+				vf3.Completable().Complete(nil)
+			}
+		})
+
+		ag.OnNotification(func(tf *omega.TransitFrame) {
+			if msg := tf.GetGetChannelMeta(); msg != nil && msg.GetName() == "NEW_CHANNEL" {
+				vf4.Completable().Complete(nil)
+			}
+		})
+
+		ag.ChannelOwnerMessage(resp.ChannelId, "OWNER", nil).AwaitTimeout(Timeout)
+		assert.True(t, vf1.AwaitTimeout(Timeout).IsSuccess())
+		assert.True(t, vf2.AwaitTimeout(Timeout).IsSuccess())
+		assert.NotEmpty(t, ag.SetChannelMetadata(resp.ChannelId, "NEW_CHANNEL", nil, nil).GetTimeout(Timeout))
+		assert.True(t, vf3.AwaitTimeout(Timeout).IsSuccess())
+		assert.True(t, vf4.AwaitTimeout(Timeout).IsSuccess())
+		assert.Equal(t, int32(2), ag.ChannelCount(resp.ChannelId).TransitFrame().GetChannelCount().Count)
+		assert.NotEmpty(t, rag.LeaveChannel(resp.ChannelId).GetTimeout(Timeout))
+		assert.NotEmpty(t, ag.CloseChannel(resp.ChannelId, "").AwaitTimeout(Timeout).Error())
+		assert.NotEmpty(t, ag.CloseChannel(resp.ChannelId, resp.OwnerKey).GetTimeout(Timeout))
+		assert.NotEmpty(t, ag.CloseChannel(resp.ChannelId, resp.OwnerKey).AwaitTimeout(Timeout).Error())
+	} else {
+		assert.Error(t, f.Error())
+	}
+
+	if f := ag.CreateVote(apirequest.CreateVote{Name: "kumoi-agent-golang_test_vt", VoteOptions: []apirequest.CreateVoteOption{{Name: "vto1"}, {Name: "vto2"}}, IdleTimeoutSecond: 60}).AwaitTimeout(Timeout); f.Get() != nil {
+		resp := f.Get().(*apiresponse.CreateVote)
+		assert.Equal(t, "kumoi-agent-golang_test_vt", resp.Name)
+		assert.NotEmpty(t, resp.AppId)
+		assert.NotEmpty(t, resp.VoteId)
+		assert.NotEmpty(t, resp.Key)
+		assert.Equal(t, 2, len(resp.VoteOptions))
+		assert.Equal(t, "vto1", resp.VoteOptions[0].Name)
+		assert.NotEmpty(t, resp.VoteOptions[0].Id)
+		assert.Equal(t, 60, resp.IdleTimeoutSecond)
+		assert.NotEmpty(t, ag.CloseVote(resp.VoteId, "").AwaitTimeout(Timeout).Error())
+		assert.NotEmpty(t, ag.CloseVote(resp.VoteId, resp.Key).GetTimeout(Timeout))
+		assert.NotEmpty(t, ag.CloseVote(resp.VoteId, resp.Key).AwaitTimeout(Timeout).Error())
+	} else {
+		assert.Error(t, f.Error())
+	}
+
+	assert.True(t, ag.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, rag.Close().AwaitTimeout(Timeout).IsSuccess())
+}

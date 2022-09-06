@@ -14,6 +14,7 @@ var appId = ""
 var token = ""
 var domain = ""
 var engine *Engine
+var agentBuilder *AgentBuilder
 
 const Timeout = time.Second
 
@@ -24,6 +25,7 @@ func TestMain(m *testing.M) {
 	conf := NewConfig(appId, token)
 	conf.Domain = domain
 	engine = NewEngine(conf)
+	agentBuilder = NewAgentBuilder(engine)
 	m.Run()
 }
 
@@ -60,6 +62,18 @@ func TestSessionMessage(t *testing.T) {
 	}
 
 	assert.True(t, vf.AwaitTimeout(Timeout).IsSuccess())
+	count := 0
+	s.(*session).transitPool.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+
+	rs.(*session).transitPool.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+
+	assert.True(t, count == 0)
 	assert.True(t, s.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, rs.Close().AwaitTimeout(Timeout).IsSuccess())
 }

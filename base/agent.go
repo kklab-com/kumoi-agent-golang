@@ -3,53 +3,99 @@ package base
 import (
 	concurrent "github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
-	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
 
 type AgentFuture interface {
 	concurrent.Future
-	Agent() *Agent
+	Agent() Agent
 }
 
 type DefaultAgentFuture struct {
 	concurrent.Future
 }
 
-func (f *DefaultAgentFuture) Agent() *Agent {
+func (f *DefaultAgentFuture) Agent() Agent {
 	if v := f.Get(); v != nil {
-		return v.(*Agent)
+		return v.(*agent)
 	}
 
 	return nil
 }
 
-type Agent struct {
-	session                      Session
-	onClosedHandlers             []func()
-	onMessageHandlers            []func(tf *omega.TransitFrame)
-	onSessionMessageHandlers     []func(tf *omega.TransitFrame)
-	onBroadcastHandlers          []func(tf *omega.TransitFrame)
-	onRequestHandlers            []func(tf *omega.TransitFrame)
-	onResponseHandlers           []func(tf *omega.TransitFrame)
-	onRequestReplayHandlers      []func(tf *omega.TransitFrame)
-	onResponseReplayHandlers     []func(tf *omega.TransitFrame)
-	onNotificationHandlers       []func(tf *omega.TransitFrame)
-	onNotificationReplayHandlers []func(tf *omega.TransitFrame)
-	onErrorHandlers              []func(err error)
+type Agent interface {
+	Close() concurrent.Future
+	Session() Session
+	GetRemoteSession(sessionId string) RemoteSessionFuture
+	OnClosed(f func())
+	OnMessage(f func(tf *omega.TransitFrame))
+	OnSessionMessage(f func(tf *omega.TransitFrame))
+	OnRequest(f func(tf *omega.TransitFrame))
+	OnResponse(f func(tf *omega.TransitFrame))
+	OnRequestReplay(f func(tf *omega.TransitFrame))
+	OnResponseReplay(f func(tf *omega.TransitFrame))
+	OnNotification(f func(tf *omega.TransitFrame))
+	OnNotificationReplay(f func(tf *omega.TransitFrame))
+	OnError(f func(err error))
+	Ping() concurrent.Future
+	OnBroadcast(f func(tf *omega.TransitFrame))
+	Broadcast(msg string) SendFuture
+	Hello() SendFuture
+	Time() SendFuture
+	PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture
+	GetChannelMetadata(channelId string) SendFuture
+	SetChannelMetadata(channelId string, name string, metadata *Metadata, skill *omega.Skill) SendFuture
+	JoinChannel(channelId string, key string) SendFuture
+	LeaveChannel(channelId string) SendFuture
+	CloseChannel(channelId, key string) SendFuture
+	ChannelMessage(channelId string, message string, metadata *Metadata) SendFuture
+	ChannelCount(channelId string) SendFuture
+	ChannelOwnerMessage(channelId string, message string, metadata *Metadata) SendFuture
+	ReplayChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture
+	GetVoteMetadata(voteId string) SendFuture
+	SetVoteMetadata(voteId string, name string, metadata *Metadata) SendFuture
+	JoinVote(voteId string, key string) SendFuture
+	LeaveVote(voteId string) SendFuture
+	CloseVote(voteId, key string) SendFuture
+	VoteMessage(voteId string, message string) SendFuture
+	VoteSelect(voteId string, voteOptionId string) SendFuture
+	VoteCount(voteId string) SendFuture
+	VoteOwnerMessage(voteId string, message string) SendFuture
+	VoteStatus(voteId string, statusType omega.Vote_Status) SendFuture
+	GetSessionMeta(sessionId string) SendFuture
+	SetSessionMeta(metadata *Metadata) SendFuture
+	SessionMessage(sessionId string, message string) SendFuture
+	SessionsMessage(sessionIds []string, message string) SendFuture
+	CreateChannel(createChannel apirequest.CreateChannel) concurrent.Future
+	CreateVote(createVote apirequest.CreateVote) concurrent.Future
 }
 
-func NewAgent(session Session) *Agent {
+type agent struct {
+	session                     Session
+	onClosedHandler             func()
+	onMessageHandler            func(tf *omega.TransitFrame)
+	onSessionMessageHandler     func(tf *omega.TransitFrame)
+	onBroadcastHandler          func(tf *omega.TransitFrame)
+	onRequestHandler            func(tf *omega.TransitFrame)
+	onResponseHandler           func(tf *omega.TransitFrame)
+	onRequestReplayHandler      func(tf *omega.TransitFrame)
+	onResponseReplayHandler     func(tf *omega.TransitFrame)
+	onNotificationHandler       func(tf *omega.TransitFrame)
+	onNotificationReplayHandler func(tf *omega.TransitFrame)
+	onErrorHandler              func(err error)
+}
+
+func NewAgent(session Session) *agent {
 	if session == nil {
 		return nil
 	}
 
-	agent := &Agent{
+	agent := &agent{
 		session: session,
-		onErrorHandlers: []func(err error){func(err error) {
-			kklogger.ErrorJ("base:Agent.onErrorHandlers", err.Error())
-		}},
+		onErrorHandler: func(err error) {
+			kklogger.ErrorJ("base:agent.onErrorHandler", err.Error())
+		},
 	}
 
 	session.OnMessage(func(msg *omega.TransitFrame) {
@@ -71,158 +117,129 @@ func NewAgent(session Session) *Agent {
 	return agent
 }
 
-func (a *Agent) invokeOnSessionMessage(tf *omega.TransitFrame) {
-	for _, f := range a.onSessionMessageHandlers {
-		kkpanic.LogCatch(func() {
-			f(tf)
-		})
+func (a *agent) invokeOnSessionMessage(tf *omega.TransitFrame) {
+	if ah := a.onSessionMessageHandler; ah != nil {
+		ah(tf)
 	}
 }
 
-func (a *Agent) invokeOnRead(tf *omega.TransitFrame) {
+func (a *agent) invokeOnRead(tf *omega.TransitFrame) {
+	var ah func(tf *omega.TransitFrame)
 	switch tf.GetClass() {
 	case omega.TransitFrame_ClassRequest:
-		for _, f := range a.onRequestHandlers {
-			kkpanic.LogCatch(func() {
-				f(tf)
-			})
-		}
+		ah = a.onRequestHandler
 	case omega.TransitFrame_ClassResponse:
-		for _, f := range a.onResponseHandlers {
-			kkpanic.LogCatch(func() {
-				f(tf)
-			})
-		}
+		ah = a.onResponseHandler
 	case omega.TransitFrame_ClassRequestReplay:
-		for _, f := range a.onRequestReplayHandlers {
-			kkpanic.LogCatch(func() {
-				f(tf)
-			})
-		}
+		ah = a.onRequestReplayHandler
 	case omega.TransitFrame_ClassResponseReplay:
-		for _, f := range a.onResponseReplayHandlers {
-			kkpanic.LogCatch(func() {
-				f(tf)
-			})
-		}
+		ah = a.onResponseReplayHandler
 	case omega.TransitFrame_ClassNotification:
 		if tf.GetBroadcast() != nil {
-			for _, f := range a.onBroadcastHandlers {
-				kkpanic.LogCatch(func() {
-					f(tf)
-				})
+			if iah := a.onBroadcastHandler; iah != nil {
+				iah(tf)
 			}
 		}
 
-		for _, f := range a.onNotificationHandlers {
-			kkpanic.LogCatch(func() {
-				f(tf)
-			})
-		}
+		ah = a.onNotificationHandler
 	case omega.TransitFrame_ClassNotificationReplay:
-		for _, f := range a.onNotificationReplayHandlers {
-			kkpanic.LogCatch(func() {
-				f(tf)
-			})
-		}
+		ah = a.onNotificationReplayHandler
 	}
 
-	for _, f := range a.onMessageHandlers {
-		kkpanic.LogCatch(func() {
-			f(tf)
-		})
+	if ah != nil {
+		ah(tf)
+	}
+
+	if ah := a.onMessageHandler; ah != nil {
+		ah(tf)
 	}
 }
 
-func (a *Agent) invokeOnError(err error) {
-	for _, f := range a.onErrorHandlers {
-		kkpanic.LogCatch(func() {
-			f(err)
-		})
+func (a *agent) invokeOnError(err error) {
+	if ah := a.onErrorHandler; ah != nil {
+		ah(err)
 	}
 }
 
-func (a *Agent) invokeOnClosed() {
-	for _, f := range a.onClosedHandlers {
-		kkpanic.LogCatch(func() {
-			f()
-		})
+func (a *agent) invokeOnClosed() {
+	if ah := a.onClosedHandler; ah != nil {
+		ah()
 	}
 }
 
-func (a *Agent) Close() concurrent.Future {
+func (a *agent) Close() concurrent.Future {
 	return a.session.Close()
 }
 
-func (a *Agent) Session() Session {
+func (a *agent) Session() Session {
 	return a.session
 }
 
-func (a *Agent) GetRemoteSession(sessionId string) RemoteSessionFuture {
+func (a *agent) GetRemoteSession(sessionId string) RemoteSessionFuture {
 	return a.session.GetRemoteSession(sessionId)
 }
 
-func (a *Agent) OnClosed(f func()) {
-	a.onClosedHandlers = append(a.onClosedHandlers, f)
+func (a *agent) OnClosed(f func()) {
+	a.onClosedHandler = f
 }
 
-func (a *Agent) OnMessage(f func(tf *omega.TransitFrame)) {
-	a.onMessageHandlers = append(a.onMessageHandlers, f)
+func (a *agent) OnMessage(f func(tf *omega.TransitFrame)) {
+	a.onMessageHandler = f
 }
 
-func (a *Agent) OnSessionMessage(f func(tf *omega.TransitFrame)) {
-	a.onSessionMessageHandlers = append(a.onSessionMessageHandlers, f)
+func (a *agent) OnSessionMessage(f func(tf *omega.TransitFrame)) {
+	a.onSessionMessageHandler = f
 }
 
-func (a *Agent) OnRequest(f func(tf *omega.TransitFrame)) {
-	a.onRequestHandlers = append(a.onRequestHandlers, f)
+func (a *agent) OnRequest(f func(tf *omega.TransitFrame)) {
+	a.onRequestHandler = f
 }
 
-func (a *Agent) OnResponse(f func(tf *omega.TransitFrame)) {
-	a.onResponseHandlers = append(a.onResponseHandlers, f)
+func (a *agent) OnResponse(f func(tf *omega.TransitFrame)) {
+	a.onResponseHandler = f
 }
 
-func (a *Agent) OnRequestReplay(f func(tf *omega.TransitFrame)) {
-	a.onRequestReplayHandlers = append(a.onRequestReplayHandlers, f)
+func (a *agent) OnRequestReplay(f func(tf *omega.TransitFrame)) {
+	a.onRequestReplayHandler = f
 }
 
-func (a *Agent) OnResponseReplay(f func(tf *omega.TransitFrame)) {
-	a.onResponseReplayHandlers = append(a.onResponseReplayHandlers, f)
+func (a *agent) OnResponseReplay(f func(tf *omega.TransitFrame)) {
+	a.onResponseReplayHandler = f
 }
 
-func (a *Agent) OnNotification(f func(tf *omega.TransitFrame)) {
-	a.onNotificationHandlers = append(a.onNotificationHandlers, f)
+func (a *agent) OnNotification(f func(tf *omega.TransitFrame)) {
+	a.onNotificationHandler = f
 }
 
-func (a *Agent) OnNotificationReplay(f func(tf *omega.TransitFrame)) {
-	a.onNotificationReplayHandlers = append(a.onNotificationReplayHandlers, f)
+func (a *agent) OnNotificationReplay(f func(tf *omega.TransitFrame)) {
+	a.onNotificationReplayHandler = f
 }
 
-func (a *Agent) OnError(f func(err error)) {
-	a.onErrorHandlers = append(a.onErrorHandlers, f)
+func (a *agent) OnError(f func(err error)) {
+	a.onErrorHandler = f
 }
 
-func (a *Agent) Ping() concurrent.Future {
+func (a *agent) Ping() concurrent.Future {
 	return a.session.Ping()
 }
 
-func (a *Agent) OnBroadcast(f func(tf *omega.TransitFrame)) {
-	a.onBroadcastHandlers = append(a.onBroadcastHandlers, f)
+func (a *agent) OnBroadcast(f func(tf *omega.TransitFrame)) {
+	a.onBroadcastHandler = f
 }
 
-func (a *Agent) Broadcast(msg string) SendFuture {
+func (a *agent) Broadcast(msg string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_Broadcast{Broadcast: &omega.Broadcast{Message: msg}})
 }
 
-func (a *Agent) Hello() SendFuture {
+func (a *agent) Hello() SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_Hello{Hello: &omega.Hello{}})
 }
 
-func (a *Agent) Time() SendFuture {
+func (a *agent) Time() SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_ServerTime{ServerTime: &omega.ServerTime{}})
 }
 
-func (a *Agent) PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture {
+func (a *agent) PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_PlaybackChannelMessage{PlaybackChannelMessage: &omega.PlaybackChannelMessage{
 		ChannelId: channelId,
 		EndedAt:   targetTimestamp,
@@ -232,39 +249,39 @@ func (a *Agent) PlaybackChannelMessage(channelId string, targetTimestamp int64, 
 	}})
 }
 
-func (a *Agent) GetChannelMetadata(channelId string) SendFuture {
+func (a *agent) GetChannelMetadata(channelId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_GetChannelMeta{GetChannelMeta: &omega.GetChannelMeta{ChannelId: channelId}})
 }
 
-func (a *Agent) SetChannelMetadata(channelId string, name string, metadata *Metadata, skill *omega.Skill) SendFuture {
+func (a *agent) SetChannelMetadata(channelId string, name string, metadata *Metadata, skill *omega.Skill) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_SetChannelMeta{SetChannelMeta: &omega.SetChannelMeta{ChannelId: channelId, Name: name, Data: metadata, Skill: skill}})
 }
 
-func (a *Agent) JoinChannel(channelId string, key string) SendFuture {
+func (a *agent) JoinChannel(channelId string, key string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_JoinChannel{JoinChannel: &omega.JoinChannel{ChannelId: channelId, Key: key}})
 }
 
-func (a *Agent) LeaveChannel(channelId string) SendFuture {
+func (a *agent) LeaveChannel(channelId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_LeaveChannel{LeaveChannel: &omega.LeaveChannel{ChannelId: channelId}})
 }
 
-func (a *Agent) CloseChannel(channelId, key string) SendFuture {
+func (a *agent) CloseChannel(channelId, key string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_CloseChannel{CloseChannel: &omega.CloseChannel{ChannelId: channelId, Key: key}})
 }
 
-func (a *Agent) ChannelMessage(channelId string, message string, metadata *Metadata) SendFuture {
+func (a *agent) ChannelMessage(channelId string, message string, metadata *Metadata) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_ChannelMessage{ChannelMessage: &omega.ChannelMessage{ChannelId: channelId, Message: message, Metadata: metadata}})
 }
 
-func (a *Agent) ChannelCount(channelId string) SendFuture {
+func (a *agent) ChannelCount(channelId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_ChannelCount{ChannelCount: &omega.ChannelCount{ChannelId: channelId}})
 }
 
-func (a *Agent) ChannelOwnerMessage(channelId string, message string, metadata *Metadata) SendFuture {
+func (a *agent) ChannelOwnerMessage(channelId string, message string, metadata *Metadata) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_ChannelOwnerMessage{ChannelOwnerMessage: &omega.ChannelOwnerMessage{ChannelId: channelId, Message: message, Metadata: metadata}})
 }
 
-func (a *Agent) ReplayChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture {
+func (a *agent) ReplayChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_ReplayChannelMessage{ReplayChannelMessage: &omega.ReplayChannelMessage{
 		ChannelId: channelId,
 		EndedAt:   targetTimestamp,
@@ -274,67 +291,67 @@ func (a *Agent) ReplayChannelMessage(channelId string, targetTimestamp int64, in
 	}})
 }
 
-func (a *Agent) GetVoteMetadata(voteId string) SendFuture {
+func (a *agent) GetVoteMetadata(voteId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_GetVoteMeta{GetVoteMeta: &omega.GetVoteMeta{VoteId: voteId}})
 }
 
-func (a *Agent) SetVoteMetadata(voteId string, name string, metadata *Metadata) SendFuture {
+func (a *agent) SetVoteMetadata(voteId string, name string, metadata *Metadata) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_SetVoteMeta{SetVoteMeta: &omega.SetVoteMeta{VoteId: voteId, Name: name, Data: metadata}})
 }
 
-func (a *Agent) JoinVote(voteId string, key string) SendFuture {
+func (a *agent) JoinVote(voteId string, key string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_JoinVote{JoinVote: &omega.JoinVote{VoteId: voteId, Key: key}})
 }
 
-func (a *Agent) LeaveVote(voteId string) SendFuture {
+func (a *agent) LeaveVote(voteId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_LeaveVote{LeaveVote: &omega.LeaveVote{VoteId: voteId}})
 }
 
-func (a *Agent) CloseVote(voteId, key string) SendFuture {
+func (a *agent) CloseVote(voteId, key string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_CloseVote{CloseVote: &omega.CloseVote{VoteId: voteId, Key: key}})
 }
 
-func (a *Agent) VoteMessage(voteId string, message string) SendFuture {
+func (a *agent) VoteMessage(voteId string, message string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_VoteMessage{VoteMessage: &omega.VoteMessage{VoteId: voteId, Message: message}})
 }
 
-func (a *Agent) VoteSelect(voteId string, voteOptionId string) SendFuture {
+func (a *agent) VoteSelect(voteId string, voteOptionId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_VoteSelect{VoteSelect: &omega.VoteSelect{VoteId: voteId, VoteOptionId: voteOptionId}})
 }
 
-func (a *Agent) VoteCount(voteId string) SendFuture {
+func (a *agent) VoteCount(voteId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_VoteCount{VoteCount: &omega.VoteCount{VoteId: voteId}})
 }
 
-func (a *Agent) VoteOwnerMessage(voteId string, message string) SendFuture {
+func (a *agent) VoteOwnerMessage(voteId string, message string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_VoteOwnerMessage{VoteOwnerMessage: &omega.VoteOwnerMessage{VoteId: voteId, Message: message}})
 }
 
-func (a *Agent) VoteStatus(voteId string, statusType omega.Vote_Status) SendFuture {
+func (a *agent) VoteStatus(voteId string, statusType omega.Vote_Status) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_VoteStatus{VoteStatus: &omega.VoteStatus{VoteId: voteId, Status: statusType}})
 }
 
-func (a *Agent) GetSessionMeta(sessionId string) SendFuture {
+func (a *agent) GetSessionMeta(sessionId string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{SessionId: sessionId}})
 }
 
-func (a *Agent) SetSessionMeta(metadata *Metadata) SendFuture {
+func (a *agent) SetSessionMeta(metadata *Metadata) SendFuture {
 	return a.Session().SetMetadata(metadata)
 }
 
-func (a *Agent) SessionMessage(sessionId string, message string) SendFuture {
+func (a *agent) SessionMessage(sessionId string, message string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_SessionMessage{SessionMessage: &omega.SessionMessage{ToSession: sessionId, Message: message}})
 }
 
-func (a *Agent) SessionsMessage(sessionIds []string, message string) SendFuture {
+func (a *agent) SessionsMessage(sessionIds []string, message string) SendFuture {
 	return a.session.SendRequest(&omega.TransitFrame_SessionsMessage{SessionsMessage: &omega.SessionsMessage{ToSessions: sessionIds, Message: message}})
 }
 
-func (a *Agent) CreateChannel(createChannel apirequest.CreateChannel) concurrent.Future {
+func (a *agent) CreateChannel(createChannel apirequest.CreateChannel) concurrent.Future {
 	return a.Session().GetEngine().createChannel(createChannel)
 }
 
-func (a *Agent) CreateVote(createVote apirequest.CreateVote) concurrent.Future {
+func (a *agent) CreateVote(createVote apirequest.CreateVote) concurrent.Future {
 	return a.Session().GetEngine().createVote(createVote)
 }
 
@@ -358,7 +375,7 @@ func (b *AgentBuilder) Connect() AgentFuture {
 	af := &DefaultAgentFuture{Future: concurrent.NewFuture()}
 	b.engine.connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
-			af.Completable().Complete(NewAgent(f.Get().(*session)))
+			af.Completable().Complete(NewAgent(f.Get().(Session)))
 		} else if f.IsCancelled() {
 			af.Completable().Cancel()
 		} else {

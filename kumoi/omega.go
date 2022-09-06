@@ -31,7 +31,7 @@ func (f *DefaultOmegaFuture) Omega() *Omega {
 }
 
 type Omega struct {
-	agent                   *base.Agent
+	agent                   base.Agent
 	opL                     sync.Mutex
 	closed                  bool
 	onMessageHandlers       sync.Map
@@ -40,7 +40,7 @@ type Omega struct {
 	OnClosedHandler         func()
 }
 
-func (o *Omega) initWithAgent(agent *base.Agent) *Omega {
+func (o *Omega) initWithAgent(agent base.Agent) *Omega {
 	if agent == nil {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (o *Omega) initWithAgent(agent *base.Agent) *Omega {
 	return o
 }
 
-func (o *Omega) Agent() *base.Agent {
+func (o *Omega) Agent() base.Agent {
 	return o.agent
 }
 
@@ -348,7 +348,7 @@ func (b *OmegaBuilder) Connect() OmegaFuture {
 	of := &DefaultOmegaFuture{Future: concurrent.NewFuture()}
 	base.NewAgentBuilder(b.engine).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
-			of.Completable().Complete((&Omega{}).initWithAgent(f.Get().(*base.Agent)))
+			of.Completable().Complete((&Omega{}).initWithAgent(f.Get().(base.Agent)))
 		} else if f.IsCancelled() {
 			of.Completable().Cancel()
 		} else if f.IsFail() {

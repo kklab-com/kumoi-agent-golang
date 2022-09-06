@@ -10,7 +10,6 @@ import (
 	websocket "github.com/kklab-com/gone-websocket"
 	"github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
-	kkpanic "github.com/kklab-com/goth-panic"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/pkg/errors"
 )
@@ -160,19 +159,19 @@ func newSession(engine *Engine) *session {
 
 type session struct {
 	remoteSession
-	serialId                 int64
-	engine                   *Engine
-	ch                       channel.Channel
-	connectFuture            concurrent.Future
-	lastActiveTimestamp      time.Time
-	workerStatus             int32
-	transitFrameWorkQueue    concurrent.BlockingQueue
-	onSessionMessageHandlers []func(msg *omega.TransitFrame)
-	onReadHandlers           []func(tf *omega.TransitFrame)
-	onClosedHandlers         []func()
-	onErrorHandlers          []func(err error)
-	transitPool              sync.Map
-	remoteSessions           sync.Map
+	serialId                int64
+	engine                  *Engine
+	ch                      channel.Channel
+	connectFuture           concurrent.Future
+	lastActiveTimestamp     time.Time
+	workerStatus            int32
+	transitFrameWorkQueue   concurrent.BlockingQueue
+	onSessionMessageHandler func(msg *omega.TransitFrame)
+	onReadHandler           func(tf *omega.TransitFrame)
+	onClosedHandler         func()
+	onErrorHandler          func(err error)
+	transitPool             sync.Map
+	remoteSessions          sync.Map
 }
 
 func (s *session) GetRemoteSession(sessionId string) RemoteSessionFuture {
@@ -309,23 +308,23 @@ func (s *session) SendRequest(data omega.TransitFrameData) SendFuture {
 }
 
 func (s *session) OnClosed(f func()) {
-	s.onClosedHandlers = append(s.onClosedHandlers, f)
+	s.onClosedHandler = f
 }
 
 // OnRead
 // for all message
 func (s *session) OnRead(f func(tf *omega.TransitFrame)) {
-	s.onReadHandlers = append(s.onReadHandlers, f)
+	s.onReadHandler = f
 }
 
 func (s *session) OnError(f func(err error)) {
-	s.onErrorHandlers = append(s.onErrorHandlers, f)
+	s.onErrorHandler = f
 }
 
 // OnMessage
 // for SessionMessage
 func (s *session) OnMessage(f func(msg *omega.TransitFrame)) {
-	s.onSessionMessageHandlers = append(s.onSessionMessageHandlers, f)
+	s.onSessionMessageHandler = f
 }
 
 func (s *session) SendMessage(message string) SendFuture {
@@ -402,18 +401,14 @@ func (s *session) transitFrameWorker(retry bool) {
 			}
 
 			if tf, ok := v.(*omega.TransitFrame); ok {
-				for _, f := range s.onReadHandlers {
-					kkpanic.LogCatch(func() {
-						f(tf)
-					})
+				if s.onReadHandler != nil {
+					s.onReadHandler(tf)
 				}
 
 				if sm := tf.GetSessionMessage(); sm != nil {
 					if tf.GetClass() == omega.TransitFrame_ClassNotification {
-						for _, f := range s.onSessionMessageHandlers {
-							kkpanic.LogCatch(func() {
-								f(tf)
-							})
+						if s.onSessionMessageHandler != nil {
+							s.onSessionMessageHandler(tf)
 						}
 					}
 

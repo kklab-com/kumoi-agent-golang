@@ -16,7 +16,6 @@ import (
 	"github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/goth-kkutil/value"
-	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/base/apiresponse"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -58,20 +57,16 @@ func (h *_EngineHandlerTask) WSConnected(ch channel.Channel, req *http2.Request,
 }
 
 func (h *_EngineHandlerTask) WSDisconnected(ch channel.Channel, req *http2.Request, resp *http2.Response, params map[string]interface{}) {
-	for _, f := range h.session.onClosedHandlers {
-		kkpanic.LogCatch(func() {
-			f()
-		})
+	if h.session.onClosedHandler != nil {
+		h.session.onClosedHandler()
 	}
 
 	routine.sessionPool.Delete(h.session)
 }
 
 func (h *_EngineHandlerTask) WSErrorCaught(ctx channel.HandlerContext, req *http2.Request, resp *http2.Response, msg websocket.Message, err error) {
-	for _, f := range h.session.onErrorHandlers {
-		kkpanic.LogCatch(func() {
-			f(err)
-		})
+	if h.session.onErrorHandler != nil {
+		h.session.onErrorHandler(err)
 	}
 }
 
