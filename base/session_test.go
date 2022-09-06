@@ -6,6 +6,7 @@ import (
 	"time"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
+	value2 "github.com/kklab-com/goth-kkutil/value"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/stretchr/testify/assert"
 )
@@ -65,11 +66,13 @@ func TestSessionMessage(t *testing.T) {
 	count := 0
 	s.(*session).transitPool.Range(func(key, value any) bool {
 		count++
+		println(value2.JsonMarshal(value))
 		return true
 	})
 
 	rs.(*session).transitPool.Range(func(key, value any) bool {
 		count++
+		println(value2.JsonMarshal(value))
 		return true
 	})
 

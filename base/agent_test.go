@@ -79,7 +79,6 @@ func TestAgent(t *testing.T) {
 		assert.NotEmpty(t, ag.SetChannelMetadata(resp.ChannelId, "NEW_CHANNEL", nil, nil).GetTimeout(Timeout))
 		assert.True(t, vf3.AwaitTimeout(Timeout).IsSuccess())
 		assert.True(t, vf4.AwaitTimeout(Timeout).IsSuccess())
-		assert.Equal(t, int32(2), ag.ChannelCount(resp.ChannelId).TransitFrame().GetChannelCount().Count)
 		assert.NotEmpty(t, rag.LeaveChannel(resp.ChannelId).GetTimeout(Timeout))
 		assert.NotEmpty(t, ag.CloseChannel(resp.ChannelId, "").AwaitTimeout(Timeout).Error())
 		assert.NotEmpty(t, ag.CloseChannel(resp.ChannelId, resp.OwnerKey).GetTimeout(Timeout))
