@@ -5,7 +5,7 @@ import (
 )
 
 type VoteSelect struct {
-	VoteTransitFrame
+	voteTransitFrame
 	SessionId    string
 	Subject      string
 	VoteOptionId string
@@ -15,5 +15,5 @@ func (c *VoteSelect) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SessionId = tf.GetVoteSelect().GetSessionId()
 	c.Subject = tf.GetVoteSelect().GetSubject()
 	c.VoteOptionId = tf.GetVoteSelect().GetVoteOptionId()
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

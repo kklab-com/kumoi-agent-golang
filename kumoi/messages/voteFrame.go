@@ -10,16 +10,16 @@ type VoteFrame interface {
 	VoteID() string
 }
 
-type VoteTransitFrame struct {
+type voteTransitFrame struct {
 	transitFrame
 	voteId string
 }
 
-func (c *VoteTransitFrame) VoteID() string {
+func (c *voteTransitFrame) VoteID() string {
 	return c.voteId
 }
 
-func (c *VoteTransitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
+func (c *voteTransitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.transitFrame.ParseTransitFrame(tf)
 	tfd := reflect.ValueOf(tf.GetData())
 	if !tfd.IsValid() {
@@ -31,7 +31,7 @@ func (c *VoteTransitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
 		return
 	}
 
-	// has channelId
+	// has VoteId
 	if tfdEv := tfdE.Field(0).Elem().FieldByName("VoteId"); tfdEv.IsValid() {
 		c.voteId = tfdEv.String()
 	}

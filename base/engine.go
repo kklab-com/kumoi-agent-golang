@@ -23,14 +23,11 @@ import (
 )
 
 var ErrCantGetServiceResource = fmt.Errorf("can't get service resource")
-var ErrCantFinishConnection = fmt.Errorf("can't finish connection")
 var ErrConnectTimeout = fmt.Errorf("connect timeout")
-
-const DefaultConnectTimeout = 10 * time.Second
 
 type _EngineHandlerTask struct {
 	websocket.DefaultHandlerTask
-	session *Session
+	session *session
 }
 
 func (h *_EngineHandlerTask) WSBinary(ctx channel.HandlerContext, message *websocket.DefaultMessage, params map[string]interface{}) {
@@ -61,7 +58,7 @@ func (h *_EngineHandlerTask) WSConnected(ch channel.Channel, req *http2.Request,
 }
 
 func (h *_EngineHandlerTask) WSDisconnected(ch channel.Channel, req *http2.Request, resp *http2.Response, params map[string]interface{}) {
-	for _, f := range h.session.onDisconnectedHandler {
+	for _, f := range h.session.onClosedHandlers {
 		kkpanic.LogCatch(func() {
 			f()
 		})
@@ -71,7 +68,7 @@ func (h *_EngineHandlerTask) WSDisconnected(ch channel.Channel, req *http2.Reque
 }
 
 func (h *_EngineHandlerTask) WSErrorCaught(ctx channel.HandlerContext, req *http2.Request, resp *http2.Response, msg websocket.Message, err error) {
-	for _, f := range h.session.onErrorHandler {
+	for _, f := range h.session.onErrorHandlers {
 		kkpanic.LogCatch(func() {
 			f(err)
 		})
@@ -79,21 +76,21 @@ func (h *_EngineHandlerTask) WSErrorCaught(ctx channel.HandlerContext, req *http
 }
 
 type Engine struct {
-	config *Config
-	apiUri string
-	wsUri  string
+	Config *Config
+	APIUri string
+	WSUri  string
 }
 
 func NewEngine(conf *Config) *Engine {
 	return &Engine{
-		config: conf,
+		Config: conf,
 	}
 }
 
 func (e *Engine) discovery() {
-	req, _ := http.NewRequest("GET", e.config.discoveryUri(), nil)
+	req, _ := http.NewRequest("GET", e.Config.discoveryUri(), nil)
 	header := http.Header{}
-	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.config.Token))
+	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.Config.Token))
 	req.Header = header
 	if resp, err := http.DefaultClient.Do(req); err != nil {
 		kklogger.WarnJ("base:Engine.discovery", err.Error())
@@ -102,21 +99,21 @@ func (e *Engine) discovery() {
 		json.Unmarshal(buf.EmptyByteBuf().WriteReader(resp.Body).Bytes(), &rm)
 		resp.Body.Close()
 		if str, f := rm["node_api_uri"]; f {
-			e.apiUri = str
+			e.APIUri = str
 		}
 
 		if str, f := rm["node_bs_uri"]; f {
-			e.wsUri = str
+			e.WSUri = str
 		}
 	}
 }
 
 func (e *Engine) checkResource() bool {
-	if e.apiUri == "" || e.wsUri == "" {
+	if e.APIUri == "" || e.WSUri == "" {
 		e.discovery()
 	}
 
-	if e.apiUri == "" || e.wsUri == "" {
+	if e.APIUri == "" || e.WSUri == "" {
 		return false
 	}
 
@@ -131,14 +128,14 @@ func (e *Engine) connect() SessionFuture {
 	}
 
 	header := http.Header{}
-	header.Set("Sec-WebSocket-Protocol", fmt.Sprintf("gundam, %s", e.config.Token))
+	header.Set("Sec-WebSocket-Protocol", fmt.Sprintf("gundam, %s", e.Config.Token))
 	session := newSession(e)
 	chFuture := channel.NewBootstrap().
 		ChannelType(&websocket.Channel{}).
 		Handler(channel.NewInitializer(func(ch channel.Channel) {
 			ch.Pipeline().AddLast("HANDLER", websocket.NewInvokeHandler(&_EngineHandlerTask{session: session}, nil))
 		})).
-		Connect(nil, &websocket.WSCustomConnectConfig{Url: e.wsUri, Header: header})
+		Connect(nil, &websocket.WSCustomConnectConfig{Url: e.WSUri, Header: header})
 
 	sessionFuture := concurrent.NewFuture()
 	session.connectFuture = sessionFuture
@@ -158,7 +155,7 @@ func (e *Engine) connect() SessionFuture {
 
 func (e *Engine) connectTimeoutWatch(f concurrent.Future) {
 	go func() {
-		<-time.NewTimer(DefaultConnectTimeout).C
+		<-time.NewTimer(e.Config.ConnectTimeout).C
 		f.Completable().Fail(ErrConnectTimeout)
 	}()
 }
@@ -175,9 +172,9 @@ func (e *Engine) createChannel(createChannel apirequest.CreateChannel) concurren
 		createChannel.IdleTimeoutSecond = 60
 	}
 
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/d/channels", e.apiUri), buf.NewByteBufString(value.JsonMarshal(createChannel)))
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/d/channels", e.APIUri), buf.NewByteBufString(value.JsonMarshal(createChannel)))
 	header := http.Header{}
-	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.config.Token))
+	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.Config.Token))
 	req.Header = header
 	future := concurrent.NewFuture()
 	go func(future concurrent.Future) {
@@ -215,9 +212,9 @@ func (e *Engine) createVote(createVote apirequest.CreateVote) concurrent.Future 
 		createVote.IdleTimeoutSecond = 60
 	}
 
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/d/votes", e.apiUri), buf.NewByteBufString(value.JsonMarshal(createVote)))
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/d/votes", e.APIUri), buf.NewByteBufString(value.JsonMarshal(createVote)))
 	header := http.Header{}
-	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.config.Token))
+	header.Set(httpheadername.Authorization, fmt.Sprintf("Bearer %s", e.Config.Token))
 	req.Header = header
 	future := concurrent.NewFuture()
 	go func(future concurrent.Future) {

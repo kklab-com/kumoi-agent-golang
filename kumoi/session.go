@@ -18,7 +18,7 @@ type RemoteSession interface {
 }
 
 type AgentSession interface {
-	Base() base.AgentSession
+	Base() base.Session
 	GetId() string
 	GetSubject() string
 	GetName() string
@@ -71,10 +71,10 @@ func (r *remoteSession) SendMessage(message string) base.SendFuture {
 }
 
 type agentSession struct {
-	session base.AgentSession
+	session base.Session
 }
 
-func (r *agentSession) Base() base.AgentSession {
+func (r *agentSession) Base() base.Session {
 	return r.session
 }
 
@@ -117,7 +117,7 @@ func (r *agentSession) SetMetadata(metadata *base.Metadata) base.SendFuture {
 }
 
 func (r *agentSession) OnDisconnected(f func()) {
-	r.session.OnDisconnected(f)
+	r.session.OnClosed(f)
 }
 
 func (r *agentSession) OnError(f func(err error)) {
@@ -125,5 +125,5 @@ func (r *agentSession) OnError(f func(err error)) {
 }
 
 func (r *agentSession) Disconnect() concurrent.Future {
-	return r.session.Disconnect()
+	return r.session.Close()
 }

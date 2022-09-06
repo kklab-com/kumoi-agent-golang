@@ -13,12 +13,6 @@ import (
 	kkpanic "github.com/kklab-com/goth-panic"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/types/known/structpb"
-)
-
-const (
-	DefaultTransitTimeout        = 10 * time.Second
-	DefaultKeepAlivePingInterval = time.Minute
 )
 
 var ErrConnectionClosed = errors.Errorf("connection closed")
@@ -53,47 +47,40 @@ type RemoteSession interface {
 	GetMetadata() *Metadata
 	OnMessage(f func(msg *omega.TransitFrame))
 	SendMessage(message string) SendFuture
+	Close() concurrent.Future
 }
 
-type AgentSession interface {
+type Session interface {
 	RemoteSession
+	GetRemoteSession(sessionId string) RemoteSessionFuture
 	Ch() channel.Channel
 	GetEngine() *Engine
 	SetName(name string) SendFuture
 	SetMetadata(metadata *Metadata) SendFuture
+	Ping() SendFuture
 	Send(tf *omega.TransitFrame) SendFuture
-	OnDisconnected(f func())
+	SendRequest(data omega.TransitFrameData) SendFuture
+	OnClosed(f func())
 	OnRead(f func(tf *omega.TransitFrame))
 	OnError(f func(err error))
-	Disconnect() concurrent.Future
-}
-
-func newSession(engine *Engine) *Session {
-	return &Session{engine: engine,
-		metadata:            &structpb.Struct{},
-		lastActiveTimestamp: time.Now(),
-	}
+	IsClosed() bool
 }
 
 type SessionFuture interface {
 	concurrent.Future
-	Session() *Session
+	Session() Session
 }
 
 type DefaultSessionFuture struct {
 	concurrent.Future
 }
 
-func (f *DefaultSessionFuture) Session() *Session {
+func (f *DefaultSessionFuture) Session() Session {
 	if v := f.Get(); v != nil {
-		return v.(*Session)
+		return v.(*session)
 	}
 
 	return nil
-}
-
-func (f *DefaultSessionFuture) Completable() concurrent.Completable {
-	return f.Future.Completable()
 }
 
 type RemoteSessionFuture interface {
@@ -107,99 +94,133 @@ type DefaultRemoteSessionFuture struct {
 
 func (f *DefaultRemoteSessionFuture) Session() RemoteSession {
 	if v := f.Get(); v != nil {
-		return v.(*Session)
+		return v.(*remoteSession)
 	}
 
 	return nil
 }
 
-type Session struct {
-	parent                  *Session
-	serialId                int64
-	engine                  *Engine
-	ch                      channel.Channel
+type remoteSession struct {
+	source                  *session
 	id                      string
 	subject                 string
 	name                    string
 	metadata                *Metadata
-	connectFuture           concurrent.Future
-	lastActiveTimestamp     time.Time
-	workerStatus            int32
-	transitFrameWorkQueue   concurrent.BlockingQueue
-	onSessionMessageHandler []func(msg *omega.TransitFrame)
-	onReadHandler           []func(tf *omega.TransitFrame)
-	onDisconnectedHandler   []func()
-	onErrorHandler          []func(err error)
-	transitPool             sync.Map
+	onSessionMessageHandler func(msg *omega.TransitFrame)
 }
 
-func (s *Session) newRemoteSession(sessionId string) RemoteSessionFuture {
-	rsf := &DefaultRemoteSessionFuture{concurrent.NewFuture()}
-	f := s.sendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{SessionId: sessionId}})
-	f.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			if v := f.Get(); v == nil {
-				rsf.Completable().Fail(ErrUnexpectError)
-				return
-			}
+func (s *remoteSession) GetId() string {
+	return s.id
+}
 
-			if sm := f.Get().(*omega.TransitFrame).GetGetSessionMeta(); sm != nil {
-				rs := &Session{
-					parent:   s,
-					ch:       s.ch,
-					id:       sm.GetSessionId(),
-					subject:  sm.GetSubject(),
-					name:     sm.GetName(),
-					metadata: sm.GetData(),
+func (s *remoteSession) GetSubject() string {
+	return s.subject
+}
+
+func (s *remoteSession) GetName() string {
+	return s.name
+}
+
+func (s *remoteSession) GetMetadata() *Metadata {
+	return s.metadata
+}
+
+// OnMessage
+// for SessionMessage
+func (s *remoteSession) OnMessage(f func(msg *omega.TransitFrame)) {
+	s.onSessionMessageHandler = f
+}
+
+func (s *remoteSession) SendMessage(message string) SendFuture {
+	return s.source.SendRequest(
+		&omega.TransitFrame_SessionMessage{SessionMessage: &omega.SessionMessage{
+			ToSession: s.GetId(),
+			Message:   message,
+		}})
+}
+
+func (s *remoteSession) Close() concurrent.Future {
+	if s.source == nil || s.source.IsClosed() {
+		return concurrent.NewFailedFuture(ErrConnectionClosed)
+	}
+
+	s.source.remoteSessions.Delete(s.GetId())
+	return concurrent.NewCompletedFuture(nil)
+}
+
+func newSession(engine *Engine) *session {
+	return &session{engine: engine,
+		remoteSession: remoteSession{
+			metadata: NewMetadata(nil),
+		},
+		transitFrameWorkQueue: concurrent.NewUnlimitedBlockingQueue(),
+		lastActiveTimestamp:   time.Now(),
+	}
+}
+
+type session struct {
+	remoteSession
+	serialId                 int64
+	engine                   *Engine
+	ch                       channel.Channel
+	connectFuture            concurrent.Future
+	lastActiveTimestamp      time.Time
+	workerStatus             int32
+	transitFrameWorkQueue    concurrent.BlockingQueue
+	onSessionMessageHandlers []func(msg *omega.TransitFrame)
+	onReadHandlers           []func(tf *omega.TransitFrame)
+	onClosedHandlers         []func()
+	onErrorHandlers          []func(err error)
+	transitPool              sync.Map
+	remoteSessions           sync.Map
+}
+
+func (s *session) GetRemoteSession(sessionId string) RemoteSessionFuture {
+	rsf := &DefaultRemoteSessionFuture{concurrent.NewFuture()}
+	source := s
+	source.SendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{SessionId: sessionId}}).
+		AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+			if f.IsSuccess() {
+				if v := f.Get(); v == nil {
+					rsf.Completable().Fail(ErrUnexpectError)
+					return
 				}
 
-				s.OnMessage(func(tf *omega.TransitFrame) {
-					if sm := tf.GetSessionMessage(); sm != nil && sm.GetFromSession() == rs.id {
-						for _, f := range rs.onSessionMessageHandler {
-							kkpanic.LogCatch(func() {
-								f(tf)
-							})
-						}
+				if sm := f.Get().(*omega.TransitFrame).GetGetSessionMeta(); sm != nil {
+					rs := &remoteSession{
+						source:   source,
+						id:       sm.GetSessionId(),
+						subject:  sm.GetSubject(),
+						name:     sm.GetName(),
+						metadata: sm.GetData(),
 					}
-				})
 
-				rsf.Completable().Complete(rs)
-			} else {
-				rsf.Completable().Fail(ErrUnexpectError)
+					source.remoteSessions.Store(rs.GetId(), rs)
+					rsf.Completable().Complete(rs)
+				} else {
+					rsf.Completable().Fail(ErrUnexpectError)
+				}
+			} else if f.IsCancelled() {
+				rsf.Completable().Cancel()
+			} else if f.IsFail() {
+				rsf.Completable().Fail(ErrSessionNotFound)
 			}
-		} else if f.IsCancelled() {
-			rsf.Completable().Cancel()
-		} else if f.IsFail() {
-			rsf.Completable().Fail(ErrSessionNotFound)
-		}
-	}))
+		}))
 
 	return rsf
 }
 
-func (s *Session) Ch() channel.Channel {
+func (s *session) Ch() channel.Channel {
 	return s.ch
 }
 
-func (s *Session) GetEngine() *Engine {
+func (s *session) GetEngine() *Engine {
 	return s.engine
 }
 
-func (s *Session) GetId() string {
-	return s.id
-}
-
-func (s *Session) GetSubject() string {
-	return s.subject
-}
-
-func (s *Session) GetName() string {
-	return s.name
-}
-
-func (s *Session) SetName(name string) SendFuture {
+func (s *session) SetName(name string) SendFuture {
 	uname := name
-	rf := s.sendRequest(
+	rf := s.SendRequest(
 		&omega.TransitFrame_SetSessionMeta{SetSessionMeta: &omega.SetSessionMeta{
 			Data: s.GetMetadata(),
 			Name: uname,
@@ -216,13 +237,9 @@ func (s *Session) SetName(name string) SendFuture {
 	return rf
 }
 
-func (s *Session) GetMetadata() *Metadata {
-	return s.metadata
-}
-
-func (s *Session) SetMetadata(metadata *Metadata) SendFuture {
+func (s *session) SetMetadata(metadata *Metadata) SendFuture {
 	uMetadata := metadata
-	rf := s.sendRequest(
+	rf := s.SendRequest(
 		&omega.TransitFrame_SetSessionMeta{SetSessionMeta: &omega.SetSessionMeta{
 			Data: uMetadata,
 			Name: s.GetName(),
@@ -239,35 +256,93 @@ func (s *Session) SetMetadata(metadata *Metadata) SendFuture {
 	return rf
 }
 
-func (s *Session) ping() SendFuture {
-	return s.sendRequest(&omega.TransitFrame_Ping{Ping: &omega.Ping{}})
+func (s *session) Ping() SendFuture {
+	return s.SendRequest(&omega.TransitFrame_Ping{Ping: &omega.Ping{}})
+}
+
+func (s *session) Send(tf *omega.TransitFrame) SendFuture {
+	stf := tf
+	if s.IsClosed() {
+		return &DefaultSendFuture{
+			Future: concurrent.NewFailedFuture(ErrConnectionClosed),
+			tf:     stf,
+		}
+	}
+
+	var rsf SendFuture
+	rsf = &DefaultSendFuture{
+		Future: concurrent.NewFuture(),
+		tf:     stf,
+	}
+
+	if stf.GetClass() == omega.TransitFrame_ClassRequest {
+		s.transitPool.Store(stf.GetTransitId(), &transitPoolEntity{
+			timestamp: time.Now(),
+			future:    rsf,
+		})
+	}
+
+	bs, _ := proto.Marshal(stf)
+	sf := s.ch.Write(&websocket.DefaultMessage{
+		MessageType: websocket.BinaryMessageType,
+		Message:     bs,
+	})
+
+	sf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+		if f.IsFail() {
+			rsf.Completable().Fail(f.Error())
+		} else if f.IsCancelled() {
+			rsf.Completable().Cancel()
+		}
+
+		if stf.GetClass() != omega.TransitFrame_ClassRequest && f.IsSuccess() {
+			rsf.Completable().Complete(nil)
+		}
+	}))
+
+	s.lastActiveTimestamp = time.Now()
+	return rsf
+}
+
+func (s *session) SendRequest(data omega.TransitFrameData) SendFuture {
+	return s.Send(s.NewTransitFrame(omega.TransitFrame_ClassRequest, data))
+}
+
+func (s *session) OnClosed(f func()) {
+	s.onClosedHandlers = append(s.onClosedHandlers, f)
+}
+
+// OnRead
+// for all message
+func (s *session) OnRead(f func(tf *omega.TransitFrame)) {
+	s.onReadHandlers = append(s.onReadHandlers, f)
+}
+
+func (s *session) OnError(f func(err error)) {
+	s.onErrorHandlers = append(s.onErrorHandlers, f)
 }
 
 // OnMessage
 // for SessionMessage
-func (s *Session) OnMessage(f func(msg *omega.TransitFrame)) {
-	s.onSessionMessageHandler = append(s.onSessionMessageHandler, f)
+func (s *session) OnMessage(f func(msg *omega.TransitFrame)) {
+	s.onSessionMessageHandlers = append(s.onSessionMessageHandlers, f)
 }
 
-func (s *Session) SendMessage(message string) SendFuture {
-	return s.sendRequest(
+func (s *session) SendMessage(message string) SendFuture {
+	return s.SendRequest(
 		&omega.TransitFrame_SessionMessage{SessionMessage: &omega.SessionMessage{
 			ToSession: s.GetId(),
 			Message:   message,
 		}})
 }
 
-func (s *Session) NewTransitId() uint64 {
-	if s.parent == nil {
-		return uint64(atomic.AddInt64(&s.serialId, 1))
-	} else {
-		return uint64(atomic.AddInt64(&s.parent.serialId, 1))
-	}
+func (s *session) newTransitId() uint64 {
+	return uint64(atomic.AddInt64(&s.serialId, 1))
 }
 
-func (s *Session) newTransitFrame(class omega.TransitFrame_FrameClass, data omega.TransitFrameData) *omega.TransitFrame {
+func (s *session) NewTransitFrame(class omega.TransitFrame_FrameClass, data omega.TransitFrameData) *omega.TransitFrame {
 	return &omega.TransitFrame{
-		TransitId: s.NewTransitId(),
+		TransitId: s.newTransitId(),
 		Timestamp: time.Now().UnixNano(),
 		Class:     class,
 		Version:   omega.TransitFrame_VersionBase,
@@ -275,23 +350,9 @@ func (s *Session) newTransitFrame(class omega.TransitFrame_FrameClass, data omeg
 	}
 }
 
-func (s *Session) OnDisconnected(f func()) {
-	s.onDisconnectedHandler = append(s.onDisconnectedHandler, f)
-}
-
-// OnRead
-// for all message
-func (s *Session) OnRead(f func(tf *omega.TransitFrame)) {
-	s.onReadHandler = append(s.onReadHandler, f)
-}
-
-func (s *Session) OnError(f func(err error)) {
-	s.onErrorHandler = append(s.onErrorHandler, f)
-}
-
-func (s *Session) transitFramePreProcess(tf *omega.TransitFrame) {
-	// hello after connection established
-	if hello := tf.GetHello(); hello != nil && tf.GetClass() == omega.TransitFrame_ClassRequest {
+func (s *session) transitFramePreProcess(tf *omega.TransitFrame) {
+	// hello msg
+	if hello := tf.GetHello(); hello != nil {
 		s.subject = hello.GetSubject()
 		s.name = hello.GetSubjectName()
 		s.id = hello.GetSessionId()
@@ -304,29 +365,21 @@ func (s *Session) transitFramePreProcess(tf *omega.TransitFrame) {
 	}
 }
 
-func (s *Session) completeWhenResponseAndError(tf *omega.TransitFrame) {
+func (s *session) completeWhenResponseAndError(tf *omega.TransitFrame) {
 	if tf.GetClass() == omega.TransitFrame_ClassResponse {
-		if v, f := s.getSourceSession().transitPool.LoadAndDelete(tf.GetTransitId()); f {
-			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveChannel(); stf != nil {
-				tf.GetLeaveChannel().ChannelId = stf.GetChannelId()
-			}
-
-			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveVote(); stf != nil {
-				tf.GetLeaveVote().VoteId = stf.GetVoteId()
-			}
-
+		if v, f := s.transitPool.LoadAndDelete(tf.GetTransitId()); f {
 			v.(*transitPoolEntity).future.Completable().Complete(tf)
 		}
 	} else if tf.GetClass() == omega.TransitFrame_ClassError {
-		if v, f := s.getSourceSession().transitPool.LoadAndDelete(tf.GetTransitId()); f {
+		if v, f := s.transitPool.LoadAndDelete(tf.GetTransitId()); f {
 			v.(*transitPoolEntity).future.Completable().Fail(tf)
 		}
 	}
 }
 
-func (s *Session) invokeOnRead(tf *omega.TransitFrame) {
+func (s *session) invokeOnRead(tf *omega.TransitFrame) {
 	if tf == nil {
-		kklogger.ErrorJ("Session.invokeOnRead", "nil tf")
+		kklogger.ErrorJ("session.invokeOnRead", "nil tf")
 		return
 	}
 
@@ -334,95 +387,56 @@ func (s *Session) invokeOnRead(tf *omega.TransitFrame) {
 	s.submitTransitFrameWorker(tf)
 }
 
-func (s *Session) submitTransitFrameWorker(tf *omega.TransitFrame) {
+func (s *session) submitTransitFrameWorker(tf *omega.TransitFrame) {
 	s.transitFrameWorkQueue.Push(tf)
 	if atomic.CompareAndSwapInt32(&s.workerStatus, 0, 1) {
-		go s.transitFrameWorker()
+		go s.transitFrameWorker(true)
 	}
 }
 
-func (s *Session) transitFrameWorker() {
-	for !s.isClosed() {
-		if tf, ok := s.transitFrameWorkQueue.Pop().(*omega.TransitFrame); ok {
-			if tf.GetClass() == omega.TransitFrame_ClassNotification && tf.GetSessionMessage() != nil {
-				for _, f := range s.onSessionMessageHandler {
+func (s *session) transitFrameWorker(retry bool) {
+	for !s.IsClosed() {
+		if v := s.transitFrameWorkQueue.TryPop(); v != nil {
+			if !retry {
+				retry = !retry
+			}
+
+			if tf, ok := v.(*omega.TransitFrame); ok {
+				for _, f := range s.onReadHandlers {
 					kkpanic.LogCatch(func() {
 						f(tf)
 					})
 				}
+
+				if sm := tf.GetSessionMessage(); sm != nil {
+					if tf.GetClass() == omega.TransitFrame_ClassNotification {
+						for _, f := range s.onSessionMessageHandlers {
+							kkpanic.LogCatch(func() {
+								f(tf)
+							})
+						}
+					}
+
+					if v, f := s.remoteSessions.Load(sm.GetFromSession()); f {
+						v.(*remoteSession).onSessionMessageHandler(tf)
+					}
+				}
+			}
+		} else {
+			if retry {
+				atomic.CompareAndSwapInt32(&s.workerStatus, 1, 0)
+				s.transitFrameWorker(false)
 			}
 
-			for _, f := range s.onReadHandler {
-				kkpanic.LogCatch(func() {
-					f(tf)
-				})
-			}
+			break
 		}
 	}
 }
 
-func (s *Session) Send(tf *omega.TransitFrame) SendFuture {
-	stf := tf
-	if s.isClosed() {
-		rf := &DefaultSendFuture{
-			Future: concurrent.NewFailedFuture(ErrConnectionClosed),
-			tf:     stf,
-		}
-
-		return rf
-	}
-
-	bs, _ := proto.Marshal(stf)
-	sf := s.ch.Write(&websocket.DefaultMessage{
-		MessageType: websocket.BinaryMessageType,
-		Message:     bs,
-	})
-
-	var rf SendFuture
-	rf = &DefaultSendFuture{
-		Future: concurrent.NewFuture(),
-		tf:     stf,
-	}
-
-	sf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsFail() {
-			rf.Completable().Fail(f.Error())
-		}
-	}))
-
-	if stf.GetClass() == omega.TransitFrame_ClassRequest {
-		s.getSourceSession().transitPool.Store(stf.GetTransitId(), &transitPoolEntity{
-			timestamp: time.Now(),
-			future:    rf,
-		})
-	} else {
-		sf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-			if f.IsSuccess() {
-				rf.Completable().Complete(nil)
-			}
-		}))
-	}
-
-	s.lastActiveTimestamp = time.Now()
-	return rf
-}
-
-func (s *Session) getSourceSession() *Session {
-	if p := s.parent; p != nil {
-		return p
-	}
-
-	return s
-}
-
-func (s *Session) sendRequest(data omega.TransitFrameData) SendFuture {
-	return s.Send(s.newTransitFrame(omega.TransitFrame_ClassRequest, data))
-}
-
-func (s *Session) Disconnect() concurrent.Future {
+func (s *session) Close() concurrent.Future {
 	return s.ch.Disconnect()
 }
 
-func (s *Session) isClosed() bool {
+func (s *session) IsClosed() bool {
 	return !s.ch.IsActive()
 }

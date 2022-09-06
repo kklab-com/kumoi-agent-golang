@@ -7,25 +7,25 @@ import (
 )
 
 type ChannelFrame interface {
-	ChannelId() string
-	Offset() int64
+	GetChannelId() string
+	GetOffset() int64
 }
 
-type ChannelTransitFrame struct {
+type channelTransitFrame struct {
 	transitFrame
 	channelId string
 	offset    int64
 }
 
-func (c *ChannelTransitFrame) ChannelId() string {
+func (c *channelTransitFrame) GetChannelId() string {
 	return c.channelId
 }
 
-func (c *ChannelTransitFrame) Offset() int64 {
+func (c *channelTransitFrame) GetOffset() int64 {
 	return c.offset
 }
 
-func (c *ChannelTransitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
+func (c *channelTransitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.transitFrame.ParseTransitFrame(tf)
 	tfd := reflect.ValueOf(tf.GetData())
 	if !tfd.IsValid() {
@@ -37,12 +37,12 @@ func (c *ChannelTransitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
 		return
 	}
 
-	// has channelId
+	// has ChannelId
 	if tfdEv := tfdE.Field(0).Elem().FieldByName("ChannelId"); tfdEv.IsValid() {
 		c.channelId = tfdEv.String()
 	}
 
-	// has offset
+	// has Offset
 	if tfdEv := tfdE.Field(0).Elem().FieldByName("Offset"); tfdEv.IsValid() {
 		c.offset = tfdEv.Int()
 	}

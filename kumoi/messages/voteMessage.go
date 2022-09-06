@@ -5,7 +5,7 @@ import (
 )
 
 type VoteMessage struct {
-	VoteTransitFrame
+	voteTransitFrame
 	FromSession   string
 	Message       string
 	Subject       string
@@ -17,5 +17,5 @@ func (c *VoteMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Message = tf.GetVoteMessage().GetMessage()
 	c.Subject = tf.GetVoteMessage().GetSubject()
 	c.RoleIndicator = tf.GetVoteMessage().GetRoleIndicator()
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

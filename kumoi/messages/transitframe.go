@@ -23,42 +23,35 @@ type TransitFrameParsable interface {
 }
 
 type transitFrame struct {
-	TransitId        uint64
-	Class            omega.TransitFrame_FrameClass
-	Version          omega.TransitFrame_Version
-	Timestamp        int64
-	Err              *omega.Error
-	MessageId        string
-	RefererMessageId string
-	tf               *omega.TransitFrame
+	tf *omega.TransitFrame
 }
 
 func (m *transitFrame) GetTransitId() uint64 {
-	return m.TransitId
+	return m.tf.GetTransitId()
 }
 
 func (m *transitFrame) GetClass() omega.TransitFrame_FrameClass {
-	return m.Class
+	return m.tf.GetClass()
 }
 
 func (m *transitFrame) GetVersion() omega.TransitFrame_Version {
-	return m.Version
+	return m.tf.GetVersion()
 }
 
 func (m *transitFrame) GetTimestamp() int64 {
-	return m.Timestamp
+	return m.tf.GetTimestamp()
 }
 
 func (m *transitFrame) GetErr() *omega.Error {
-	return m.Err
+	return m.tf.GetErr()
 }
 
 func (m *transitFrame) GetMessageId() string {
-	return m.MessageId
+	return TransitMessageIdCodec.EncodeToString(m.tf.GetMessageId())
 }
 
 func (m *transitFrame) GetRefererMessageId() string {
-	return m.RefererMessageId
+	return TransitMessageIdCodec.EncodeToString(m.tf.GetRefererMessageId())
 }
 
 func (m *transitFrame) ProtoMessage() *omega.TransitFrame {
@@ -66,19 +59,13 @@ func (m *transitFrame) ProtoMessage() *omega.TransitFrame {
 }
 
 func (m *transitFrame) Error() string {
-	if m.Err == nil {
-		return ""
+	if err := m.GetErr(); err != nil {
+		return value.JsonMarshal(m.GetErr())
 	}
 
-	return value.JsonMarshal(m.Err)
+	return ""
 }
 
 func (m *transitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
-	m.TransitId = tf.GetTransitId()
-	m.Class = tf.GetClass()
-	m.Version = tf.GetVersion()
-	m.Timestamp = tf.GetTimestamp()
-	m.MessageId = TransitMessageIdCodec.EncodeToString(tf.GetMessageId())
-	m.RefererMessageId = TransitMessageIdCodec.EncodeToString(tf.GetRefererMessageId())
 	m.tf = tf
 }

@@ -188,7 +188,7 @@ func (c *Channel) init() {
 		}
 
 		// has same channelId
-		if tfdEChId := tfdE.Field(0).Elem().FieldByName("ChannelId"); tfdEChId.IsValid() && tfdEChId.String() == c.Id() {
+		if tfdEChId := tfdE.Field(0).Elem().FieldByName("GetChannelId"); tfdEChId.IsValid() && tfdEChId.String() == c.Id() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
@@ -216,8 +216,8 @@ func (c *Channel) init() {
 				}
 
 				if rcf != nil {
-					if ccf, ok := rcf.(messages.TransitFrameParsable); ok {
-						ccf.ParseTransitFrame(tf)
+					if tfp, ok := rcf.(messages.TransitFrameParsable); ok {
+						tfp.ParseTransitFrame(tf)
 					}
 				}
 

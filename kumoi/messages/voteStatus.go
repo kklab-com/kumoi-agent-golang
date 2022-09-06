@@ -5,11 +5,11 @@ import (
 )
 
 type VoteStatus struct {
-	VoteTransitFrame
+	voteTransitFrame
 	Status omega.Vote_Status
 }
 
 func (c *VoteStatus) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Status = tf.GetVoteStatus().GetStatus()
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

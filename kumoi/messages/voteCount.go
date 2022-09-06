@@ -5,7 +5,7 @@ import (
 )
 
 type VoteCount struct {
-	VoteTransitFrame
+	voteTransitFrame
 	VoteOptions []VoteOption
 }
 
@@ -20,5 +20,5 @@ func (c *VoteCount) ParseTransitFrame(tf *omega.TransitFrame) {
 		})
 	}
 
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

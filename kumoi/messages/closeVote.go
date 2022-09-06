@@ -3,9 +3,9 @@ package messages
 import omega "github.com/kklab-com/kumoi-protobuf-golang"
 
 type CloseVote struct {
-	VoteTransitFrame
+	voteTransitFrame
 }
 
 func (c *CloseVote) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

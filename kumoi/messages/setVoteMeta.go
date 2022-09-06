@@ -6,7 +6,7 @@ import (
 )
 
 type SetVoteMeta struct {
-	VoteTransitFrame
+	voteTransitFrame
 	Data *base.Metadata
 	Name string
 }
@@ -14,5 +14,5 @@ type SetVoteMeta struct {
 func (c *SetVoteMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Data = tf.GetSetVoteMeta().GetData()
 	c.Name = tf.GetSetVoteMeta().GetName()
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type JoinVote struct {
-	VoteTransitFrame
+	voteTransitFrame
 	Name            string
 	SessionId       string
 	SessionMetadata *base.Metadata
@@ -16,5 +16,5 @@ func (c *JoinVote) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Name = tf.GetJoinVote().GetName()
 	c.SessionId = tf.GetJoinVote().GetSessionId()
 	c.SessionMetadata = tf.GetJoinVote().GetSessionMetadata()
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

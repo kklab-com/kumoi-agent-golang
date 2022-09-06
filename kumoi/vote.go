@@ -238,8 +238,8 @@ func (v *Vote) init() {
 				}
 
 				if vf != nil {
-					if ccf, ok := vf.(messages.TransitFrameParsable); ok {
-						ccf.ParseTransitFrame(tf)
+					if tfp, ok := vf.(messages.TransitFrameParsable); ok {
+						tfp.ParseTransitFrame(tf)
 					}
 				}
 

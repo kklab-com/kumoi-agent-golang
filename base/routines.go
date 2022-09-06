@@ -41,15 +41,15 @@ type _routine struct {
 func (r *_routine) sessionPoolMaintainAndKeepAlive() {
 	// maintain session and timeout request
 	r.sessionPool.Range(func(key, value interface{}) bool {
-		if session, ok := value.(*Session); ok {
-			if session.isClosed() {
+		if session, ok := value.(*session); ok {
+			if session.IsClosed() {
 				r.sessionPool.Delete(key)
 				return true
 			}
 
 			// auto keepalive ping when no active for a while
 			if session.lastActiveTimestamp.Add(DefaultKeepAlivePingInterval).Before(r.now) {
-				session.ping()
+				session.Ping()
 			}
 		}
 
@@ -60,7 +60,7 @@ func (r *_routine) sessionPoolMaintainAndKeepAlive() {
 func (r *_routine) timeoutTransitClean() {
 	// maintain session and timeout request
 	r.sessionPool.Range(func(key, value interface{}) bool {
-		if session, ok := value.(*Session); ok {
+		if session, ok := value.(*session); ok {
 			// clean timeout request
 			session.transitPool.Range(func(key, value interface{}) bool {
 				tpe := value.(*transitPoolEntity)

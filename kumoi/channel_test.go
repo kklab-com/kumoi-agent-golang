@@ -15,7 +15,7 @@ import (
 )
 
 func TestChannel_ChannelJoin(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(engine).Connect().Omega()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.Time())
@@ -74,7 +74,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
 	assert.Equal(t, int32(1), ch.GetCount().Count)
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().ChannelId())
+	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().GetChannelId())
 	assert.Equal(t, ch.Name(), cp.Next().(*ChannelPlayerEntity).GetSetChannelMeta().Name)
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
@@ -87,8 +87,8 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
 	assert.Equal(t, ch.Name(), cp.Next().(*ChannelPlayerEntity).GetSetChannelMeta().Name)
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().ChannelId())
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetCloseChannel().ChannelId())
+	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().GetChannelId())
+	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetCloseChannel().GetChannelId())
 	assert.Nil(t, cp.Next())
 	assert.True(t, closed)
 	assert.True(t, o.Close().Await().IsSuccess())

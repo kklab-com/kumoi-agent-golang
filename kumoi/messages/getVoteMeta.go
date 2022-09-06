@@ -6,7 +6,7 @@ import (
 )
 
 type GetVoteMeta struct {
-	VoteTransitFrame
+	voteTransitFrame
 	VoteOptions []VoteOption
 	Data        *base.Metadata
 	Name        string
@@ -27,5 +27,5 @@ func (c *GetVoteMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Data = tf.GetGetVoteMeta().GetData()
 	c.Name = tf.GetGetVoteMeta().GetName()
 	c.CreatedAt = tf.GetGetChannelMeta().GetCreatedAt()
-	c.VoteTransitFrame.ParseTransitFrame(tf)
+	c.voteTransitFrame.ParseTransitFrame(tf)
 }

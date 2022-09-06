@@ -6,7 +6,7 @@ import (
 )
 
 type GetChannelMeta struct {
-	ChannelTransitFrame
+	channelTransitFrame
 	Data      *base.Metadata
 	Name      string
 	CreatedAt int64
@@ -18,5 +18,5 @@ func (c *GetChannelMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Name = tf.GetGetChannelMeta().GetName()
 	c.CreatedAt = tf.GetGetChannelMeta().GetCreatedAt()
 	c.Skill = tf.GetGetChannelMeta().GetSkill()
-	c.ChannelTransitFrame.ParseTransitFrame(tf)
+	c.channelTransitFrame.ParseTransitFrame(tf)
 }

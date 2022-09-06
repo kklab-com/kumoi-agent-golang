@@ -6,7 +6,7 @@ import (
 )
 
 type ChannelOwnerMessage struct {
-	ChannelTransitFrame
+	channelTransitFrame
 	FromSession string
 	Message     string
 	Subject     string
@@ -22,5 +22,5 @@ func (c *ChannelOwnerMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SubjectName = tf.GetChannelOwnerMessage().GetSubjectName()
 	c.Metadata = tf.GetChannelOwnerMessage().GetMetadata()
 	c.Skill = tf.GetChannelOwnerMessage().GetSkill()
-	c.ChannelTransitFrame.ParseTransitFrame(tf)
+	c.channelTransitFrame.ParseTransitFrame(tf)
 }

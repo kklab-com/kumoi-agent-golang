@@ -14,8 +14,8 @@ import (
 )
 
 func TestOmega_RemoteSession(t *testing.T) {
-	ro := NewOmegaBuilder(conf).Connect().Omega()
-	so := NewOmegaBuilder(conf).Connect().Omega()
+	ro := NewOmegaBuilder(engine).Connect().Omega()
+	so := NewOmegaBuilder(engine).Connect().Omega()
 	assert.NotNil(t, ro)
 	assert.NotNil(t, so)
 	got := false
@@ -52,7 +52,7 @@ func TestOmega_MultiSession(t *testing.T) {
 	tCount := int32(0)
 	nCount := int32(0)
 	bwg := concurrent.WaitGroup{}
-	ng := NewOmegaBuilder(conf).Connect().Omega()
+	ng := NewOmegaBuilder(engine).Connect().Omega()
 	och := ng.CreateChannel(apirequest.CreateChannel{}).Join()
 	if och == nil {
 		assert.Fail(t, "create ch nil")
@@ -78,7 +78,7 @@ func TestOmega_MultiSession(t *testing.T) {
 
 	for i := 0; i < thread; i++ {
 		go func(ii int) {
-			og := NewOmegaBuilder(conf).Connect().Omega()
+			og := NewOmegaBuilder(engine).Connect().Omega()
 			ch := og.GetChannel(och.Id()).Join("")
 			wjd.Done()
 			wjd.Wait()
@@ -153,7 +153,7 @@ func TestOmega_MultiSession(t *testing.T) {
 
 func TestOmega_MultiChannelCount(t *testing.T) {
 	bwg := concurrent.WaitGroup{}
-	ng := NewOmegaBuilder(conf).Connect().Omega()
+	ng := NewOmegaBuilder(engine).Connect().Omega()
 	och := ng.CreateChannel(apirequest.CreateChannel{}).Join()
 	if och == nil {
 		assert.Fail(t, "create ch nil")
@@ -179,7 +179,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 
 	for i := 0; i < thread; i++ {
 		go func(ii int) {
-			og := NewOmegaBuilder(conf).Connect().Omega()
+			og := NewOmegaBuilder(engine).Connect().Omega()
 			ch := og.GetChannel(och.Id()).Join("")
 			wjd.Done()
 			wjd.Wait()

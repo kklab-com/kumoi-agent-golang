@@ -20,7 +20,6 @@ type OmegaFuture interface {
 
 type DefaultOmegaFuture struct {
 	concurrent.Future
-	af base.AgentFuture
 }
 
 func (f *DefaultOmegaFuture) Omega() *Omega {
@@ -38,7 +37,7 @@ type Omega struct {
 	onMessageHandlers       sync.Map
 	OnSessionMessageHandler func(tf *messages.SessionMessage)
 	OnBroadcastHandler      func(tf *messages.Broadcast)
-	OnDisconnectedHandler   func()
+	OnClosedHandler         func()
 }
 
 func (o *Omega) initWithAgent(agent *base.Agent) *Omega {
@@ -57,15 +56,15 @@ func (o *Omega) initWithAgent(agent *base.Agent) *Omega {
 		}
 	}
 
-	if o.OnDisconnectedHandler == nil {
-		o.OnDisconnectedHandler = func() {
+	if o.OnClosedHandler == nil {
+		o.OnClosedHandler = func() {
 		}
 	}
 
 	o.agent.OnSessionMessage(o.invokeOnSessionMessage)
 	o.agent.OnBroadcast(o.invokeOnBroadcast)
-	o.agent.OnDisconnected(o.disconnectedProcess)
-	o.agent.OnDisconnected(o.invokeOnDisconnected)
+	o.agent.OnClosed(o.disconnectedProcess)
+	o.agent.OnClosed(o.invokeOnDisconnected)
 	o.agent.OnMessage(func(tf *omega.TransitFrame) {
 		o.onMessageHandlers.Range(func(key, value interface{}) bool {
 			defer kkpanic.Log()
@@ -183,7 +182,7 @@ func (o *Omega) PlaybackChannelMessage(channelId string, targetTimestamp int64, 
 
 func (o *Omega) Close() concurrent.Future {
 	o.closed = true
-	return o.Agent().Disconnect()
+	return o.Agent().Close()
 }
 
 // IsClosed
@@ -211,7 +210,7 @@ func (o *Omega) invokeOnBroadcast(tf *omega.TransitFrame) {
 }
 
 func (o *Omega) invokeOnDisconnected() {
-	o.OnDisconnectedHandler()
+	o.OnClosedHandler()
 }
 
 type CreateChannelFuture interface {
@@ -330,27 +329,26 @@ func (o *Omega) disconnectedProcess() {
 }
 
 type OmegaBuilder struct {
-	config *base.Config
+	engine *base.Engine
 }
 
-func NewOmegaBuilder(conf *base.Config) *OmegaBuilder {
-	if conf == nil {
+func NewOmegaBuilder(engine *base.Engine) *OmegaBuilder {
+	if engine == nil {
 		return nil
 	}
 
-	return &OmegaBuilder{config: conf}
+	return &OmegaBuilder{engine: engine}
 }
 
 func (b *OmegaBuilder) Connect() OmegaFuture {
-	if b.config == nil {
+	if b.engine == nil || b.engine.Config == nil {
 		return &DefaultOmegaFuture{Future: concurrent.NewFailedFuture(base.ErrConfigIsEmpty)}
 	}
 
-	af := base.NewAgentBuilder(b.config).Connect()
-	of := &DefaultOmegaFuture{Future: concurrent.NewFuture(), af: af}
-	of.af.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	of := &DefaultOmegaFuture{Future: concurrent.NewFuture()}
+	base.NewAgentBuilder(b.engine).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
-			of.Completable().Complete((&Omega{}).initWithAgent(of.af.Get().(*base.Agent)))
+			of.Completable().Complete((&Omega{}).initWithAgent(f.Get().(*base.Agent)))
 		} else if f.IsCancelled() {
 			of.Completable().Cancel()
 		} else if f.IsFail() {

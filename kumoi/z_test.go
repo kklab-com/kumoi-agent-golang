@@ -8,7 +8,7 @@ import (
 )
 
 func TestOmegaKeepAlive(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(engine).Connect().Omega()
 	<-time.After(10 * time.Second)
 	assert.False(t, o.IsClosed())
 	assert.False(t, o.IsDisconnected())
