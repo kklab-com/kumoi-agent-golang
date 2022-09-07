@@ -42,7 +42,7 @@ type Agent interface {
 	OnBroadcast(f func(tf *omega.TransitFrame))
 	Broadcast(msg string) SendFuture
 	Hello() SendFuture
-	Time() SendFuture
+	ServerTime() SendFuture
 	PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture
 	GetChannelMetadata(channelId string) SendFuture
 	SetChannelMetadata(channelId string, name string, metadata *Metadata, skill *omega.Skill) SendFuture
@@ -232,11 +232,11 @@ func (a *agent) Broadcast(msg string) SendFuture {
 }
 
 func (a *agent) Hello() SendFuture {
-	return a.session.SendRequest(&omega.TransitFrame_Hello{Hello: &omega.Hello{}})
+	return a.session.Hello()
 }
 
-func (a *agent) Time() SendFuture {
-	return a.session.SendRequest(&omega.TransitFrame_ServerTime{ServerTime: &omega.ServerTime{}})
+func (a *agent) ServerTime() SendFuture {
+	return a.session.ServerTime()
 }
 
 func (a *agent) PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) SendFuture {

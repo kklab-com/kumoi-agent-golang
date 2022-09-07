@@ -114,8 +114,8 @@ func (o *Omega) Hello() *messages.Hello {
 	return nil
 }
 
-func (o *Omega) Time() *messages.Time {
-	if v := o.agent.Time().Await().Get(); v != nil {
+func (o *Omega) ServerTime() *messages.Time {
+	if v := o.agent.ServerTime().Await().Get(); v != nil {
 		tf := v.(*omega.TransitFrame)
 		r := &messages.Time{}
 		r.ParseTransitFrame(tf)

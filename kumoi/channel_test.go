@@ -18,7 +18,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	o := NewOmegaBuilder(engine).Connect().Omega()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
-	assert.NotEmpty(t, o.Time())
+	assert.NotEmpty(t, o.ServerTime())
 	chf := o.CreateChannel(apirequest.CreateChannel{
 		Name:              t.Name(),
 		IdleTimeoutSecond: 100,
@@ -40,7 +40,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 		switch v := msg.(type) {
 		case *messages.ChannelMessage:
 			if v.Metadata != nil && v.Metadata.GetFields()["typ"].GetStringValue() == "SendMessage" {
-				cmMeta.Completable().Complete(true)
+				cmMeta.Completable().Complete(nil)
 			}
 		}
 	})
@@ -49,7 +49,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	assert.NotEqual(t, ch.Role(), omega.Role_RoleOwner)
 	assert.True(t, ch.SendMessage("SendMessage", base.NewMetadata(map[string]interface{}{"typ": "SendMessage"})))
 	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
-	assert.True(t, cmMeta.GetTimeout(time.Second).(bool))
+	assert.True(t, cmMeta.AwaitTimeout(time.Second).IsSuccess())
 	assert.False(t, ch.Close())
 	assert.Nil(t, chInfo.Join(""))
 	assert.True(t, ch.Leave())

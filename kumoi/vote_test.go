@@ -14,7 +14,7 @@ func TestOmegaVote(t *testing.T) {
 	o := NewOmegaBuilder(engine).Connect().Omega()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
-	assert.NotEmpty(t, o.Time())
+	assert.NotEmpty(t, o.ServerTime())
 	assert.True(t, o.Broadcast("golang broadcast test"))
 	vtf := o.CreateVote(apirequest.CreateVote{
 		Name:              "!!!",

@@ -56,9 +56,11 @@ type Session interface {
 	GetEngine() *Engine
 	SetName(name string) SendFuture
 	SetMetadata(metadata *Metadata) SendFuture
-	Ping() SendFuture
 	Send(tf *omega.TransitFrame) SendFuture
 	SendRequest(data omega.TransitFrameData) SendFuture
+	Ping() SendFuture
+	Hello() SendFuture
+	ServerTime() SendFuture
 	OnClosed(f func())
 	OnRead(f func(tf *omega.TransitFrame))
 	OnError(f func(err error))
@@ -255,10 +257,6 @@ func (s *session) SetMetadata(metadata *Metadata) SendFuture {
 	return rf
 }
 
-func (s *session) Ping() SendFuture {
-	return s.SendRequest(&omega.TransitFrame_Ping{Ping: &omega.Ping{}})
-}
-
 func (s *session) Send(tf *omega.TransitFrame) SendFuture {
 	stf := tf
 	if s.IsClosed() {
@@ -305,6 +303,18 @@ func (s *session) Send(tf *omega.TransitFrame) SendFuture {
 
 func (s *session) SendRequest(data omega.TransitFrameData) SendFuture {
 	return s.Send(s.NewTransitFrame(omega.TransitFrame_ClassRequest, data))
+}
+
+func (s *session) Ping() SendFuture {
+	return s.SendRequest(&omega.TransitFrame_Ping{Ping: &omega.Ping{}})
+}
+
+func (s *session) Hello() SendFuture {
+	return s.SendRequest(&omega.TransitFrame_Hello{Hello: &omega.Hello{}})
+}
+
+func (s *session) ServerTime() SendFuture {
+	return s.SendRequest(&omega.TransitFrame_ServerTime{ServerTime: &omega.ServerTime{}})
 }
 
 func (s *session) OnClosed(f func()) {

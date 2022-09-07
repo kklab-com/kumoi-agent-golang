@@ -2,6 +2,7 @@ package base
 
 import (
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,6 +40,25 @@ func TestSessionEstablish(t *testing.T) {
 	assert.NotEmpty(t, s.GetName())
 	assert.NotEmpty(t, s.Ping().Get())
 	assert.True(t, s.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestSessionOperation(t *testing.T) {
+	sf := engine.connect()
+	assert.NotEmpty(t, sf.Session())
+	ss := sf.Session()
+	ssp := ss.Ping()
+	ssp.Await()
+	assert.NotEmpty(t, ss.Ping().TransitFrame())
+	assert.NotEmpty(t, ss.Hello().TransitFrame().GetHello())
+	assert.NotEmpty(t, ss.ServerTime().TransitFrame().GetServerTime())
+	assert.NotEmpty(t, ss.Ch())
+	assert.NotEmpty(t, ss.GetEngine())
+	assert.NotEmpty(t, ss.GetId())
+	assert.NotEmpty(t, ss.GetName())
+	assert.NotEmpty(t, ss.GetSubject())
+	assert.NotEmpty(t, ss.SetMetadata(NewMetadata(map[string]interface{}{"N": "NV"})).AwaitTimeout(time.Second).IsSuccess())
+	assert.NotEmpty(t, ss.GetMetadata().GetFields()["N"].GetStringValue() == "NV")
+	assert.True(t, ss.Close().AwaitTimeout(time.Second).IsSuccess())
 }
 
 func TestSessionMessage(t *testing.T) {
@@ -79,4 +99,42 @@ func TestSessionMessage(t *testing.T) {
 	assert.True(t, count == 0)
 	assert.True(t, s.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, rs.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestSessionsMessage(t *testing.T) {
+	rs1 := engine.connect().Session()
+	rs2 := engine.connect().Session()
+	s := engine.connect().Session()
+	wg := concurrent.WaitGroup{}
+	f := concurrent.NewFuture()
+	wg.Add(300)
+	count := int64(0)
+	rs1.OnMessage(func(msg *omega.TransitFrame) {
+		wg.Done()
+		atomic.AddInt64(&count, 1)
+	})
+
+	rs2.OnMessage(func(msg *omega.TransitFrame) {
+		wg.Done()
+		atomic.AddInt64(&count, 1)
+	})
+
+	s.OnMessage(func(msg *omega.TransitFrame) {
+		wg.Done()
+		atomic.AddInt64(&count, 1)
+	})
+
+	go func() {
+		wg.Wait()
+		f.Completable().Complete(nil)
+	}()
+
+	for i := 0; i < 100; i++ {
+		s.SendRequest(&omega.TransitFrame_SessionsMessage{SessionsMessage: &omega.SessionsMessage{ToSessions: []string{rs1.GetId(), rs2.GetId(), s.GetId()}, Message: "!!"}})
+	}
+
+	assert.True(t, f.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, count == 300)
+	assert.True(t, rs1.Close().AwaitTimeout(time.Second).IsSuccess())
+	assert.True(t, s.Close().AwaitTimeout(time.Second).IsSuccess())
 }
