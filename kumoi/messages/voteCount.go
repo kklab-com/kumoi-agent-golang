@@ -21,4 +21,5 @@ func (c *VoteCount) ParseTransitFrame(tf *omega.TransitFrame) {
 	}
 
 	c.voteTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

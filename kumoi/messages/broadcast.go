@@ -10,4 +10,5 @@ type Broadcast struct {
 func (c *Broadcast) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Message = tf.GetBroadcast().GetMessage()
 	c.transitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

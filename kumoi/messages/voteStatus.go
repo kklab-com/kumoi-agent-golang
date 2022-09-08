@@ -12,4 +12,5 @@ type VoteStatus struct {
 func (c *VoteStatus) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Status = tf.GetVoteStatus().GetStatus()
 	c.voteTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

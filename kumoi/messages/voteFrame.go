@@ -7,6 +7,7 @@ import (
 )
 
 type VoteFrame interface {
+	TransitFrame
 	VoteID() string
 }
 

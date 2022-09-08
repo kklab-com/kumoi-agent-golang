@@ -15,11 +15,8 @@ import (
 )
 
 func TestChannel_ChannelJoin(t *testing.T) {
-	o := NewOmegaBuilder(engine).Connect().Omega()
-	assert.NotEmpty(t, o)
-	assert.NotEmpty(t, o.Hello())
-	assert.NotEmpty(t, o.ServerTime())
-	chf := o.CreateChannel(apirequest.CreateChannel{
+	omg := NewOmegaBuilder(engine).Connect().Omega()
+	chf := omg.CreateChannel(apirequest.CreateChannel{
 		Name:              t.Name(),
 		IdleTimeoutSecond: 100,
 	})
@@ -29,9 +26,10 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	assert.NotNil(t, chInfo)
 	assert.Equal(t, t.Name(), chInfo.Name())
 	ch := chInfo.Join(chf.Response().ParticipatorKey)
-	leave := false
+	assert.NotNil(t, ch)
+	vf := concurrent.NewFuture()
 	ch.OnLeave(func() {
-		leave = true
+		vf.Completable().Complete(nil)
 	})
 
 	cmMeta := concurrent.NewFuture()
@@ -47,13 +45,13 @@ func TestChannel_ChannelJoin(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.NotEqual(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendMessage("SendMessage", base.NewMetadata(map[string]interface{}{"typ": "SendMessage"})))
-	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
-	assert.True(t, cmMeta.AwaitTimeout(time.Second).IsSuccess())
-	assert.False(t, ch.Close())
+	assert.True(t, ch.SendMessage("SendMessage", base.NewMetadata(map[string]interface{}{"typ": "SendMessage"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, cmMeta.Await().IsSuccess())
+	assert.False(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.Nil(t, chInfo.Join(""))
-	assert.True(t, ch.Leave())
-	assert.True(t, leave)
+	assert.True(t, ch.Leave().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vf.AwaitTimeout(Timeout).IsSuccess())
 
 	ch = chf.Join()
 	closed := false
@@ -67,29 +65,29 @@ func TestChannel_ChannelJoin(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.Equal(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
-	assert.True(t, ch.SetName("new_channel_name"))
+	assert.True(t, ch.SendOwnerMessage("SendOwnerMessage", nil).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ch.SetName("new_channel_name").AwaitTimeout(Timeout).IsSuccess())
 	println("wait for replay")
 	<-time.After(2 * time.Second)
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, int32(1), ch.GetCount().Count)
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Name(), cp.Next().(*ChannelPlayerEntity).GetSetChannelMeta().Name)
-	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
-	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
+	assert.Equal(t, int32(1), ch.GetCount().TransitFrame().Count)
+	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
+	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Nil(t, cp.Next())
-	assert.True(t, ch.Close())
+	assert.True(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())
 	println("wait for playback")
 	<-time.After(2 * time.Second)
-	cp = o.PlaybackChannelMessage(ch.Id(), math.MaxInt32, false, omega.Volume_VolumeLowest)
+	cp = omg.PlaybackChannelMessage(ch.Id(), math.MaxInt32, false, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
-	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
-	assert.Equal(t, ch.Name(), cp.Next().(*ChannelPlayerEntity).GetSetChannelMeta().Name)
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetCloseChannel().GetChannelId())
+	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
+	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
+	assert.Equal(t, ch.Id(), cp.Next().Cast().CloseChannel().GetChannelId())
 	assert.Nil(t, cp.Next())
 	assert.True(t, closed)
-	assert.True(t, o.Close().Await().IsSuccess())
+	assert.True(t, omg.Close().Await().AwaitTimeout(Timeout).IsSuccess())
 }

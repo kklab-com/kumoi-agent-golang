@@ -1,12 +1,13 @@
 package kumoi
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"time"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
-	"github.com/kklab-com/goth-kkutil/hex"
+	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -95,62 +96,57 @@ func (c *Channel) Name() string {
 	return c.Info().name
 }
 
-func (c *Channel) SetName(name string) bool {
-	if c.omega.Agent().SetChannelMetadata(c.Info().channelId, name, nil, nil).Await().IsSuccess() {
-		c.info.name = name
-		return true
-	}
+func (c *Channel) SetName(name string) SendFuture[*messages.SetChannelMeta] {
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, name, nil, nil))
+}
 
-	return false
+func (c *Channel) Fetch() SendFuture[*messages.GetChannelMeta] {
+	return wrapSendFuture[*messages.GetChannelMeta](c.omega.Agent().GetChannelMetadata(c.Id()))
 }
 
 func (c *Channel) Metadata() *base.Metadata {
 	return c.info.Metadata()
 }
 
-func (c *Channel) SetMetadata(meta *base.Metadata) bool {
-	return c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", meta, nil).Await().IsSuccess()
+func (c *Channel) SetMetadata(meta *base.Metadata) SendFuture[*messages.SetChannelMeta] {
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", meta, nil))
 }
 
-func (c *Channel) SetSkill(skill *omega.Skill) bool {
-	return c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", nil, skill).Await().IsSuccess()
+func (c *Channel) SetSkill(skill *omega.Skill) SendFuture[*messages.SetChannelMeta] {
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", nil, skill))
 }
 
-func (c *Channel) Leave() bool {
-	return c.omega.Agent().LeaveChannel(c.Info().channelId).Await().IsSuccess()
+func (c *Channel) Leave() SendFuture[*messages.LeaveChannel] {
+	return wrapSendFuture[*messages.LeaveChannel](c.omega.Agent().LeaveChannel(c.Info().channelId))
 }
 
-func (c *Channel) Close() bool {
-	return c.omega.Agent().CloseChannel(c.Info().channelId, c.key).Await().IsSuccess()
+func (c *Channel) Close() SendFuture[*messages.CloseChannel] {
+	return wrapSendFuture[*messages.CloseChannel](c.omega.Agent().CloseChannel(c.Info().channelId, c.key))
 }
 
-func (c *Channel) SendMessage(msg string, meta *base.Metadata) bool {
-	return c.omega.Agent().ChannelMessage(c.Info().channelId, msg, meta).Await().IsSuccess()
+func (c *Channel) SendMessage(msg string, meta *base.Metadata) SendFuture[*messages.ChannelMessage] {
+	return wrapSendFuture[*messages.ChannelMessage](c.omega.Agent().ChannelMessage(c.Info().channelId, msg, meta))
 }
 
-func (c *Channel) SendOwnerMessage(msg string, meta *base.Metadata) bool {
-	return c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, meta).Await().IsSuccess()
+func (c *Channel) SendOwnerMessage(msg string, meta *base.Metadata) SendFuture[*messages.ChannelOwnerMessage] {
+	return wrapSendFuture[*messages.ChannelOwnerMessage](c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, meta))
 }
 
-func (c *Channel) GetCount() *messages.ChannelCount {
-	if tf := castTransitFrame(c.omega.Agent().ChannelCount(c.Info().channelId).Get()); tf != nil {
-		r := &messages.ChannelCount{}
-		r.ParseTransitFrame(tf)
-		return r
-	}
-
-	return nil
+func (c *Channel) GetCount() SendFuture[*messages.ChannelCount] {
+	return wrapSendFuture[*messages.ChannelCount](c.omega.Agent().ChannelCount(c.Info().channelId))
 }
 
-func (c *Channel) ReplayChannelMessage(targetTimestamp int64, inverse bool, volume omega.Volume) TFPlayer {
-	cp := &ChannelPlayer{
-		omega:     c.omega,
-		channelId: c.info.channelId,
-	}
-
-	cp.load(c.omega.Agent().ReplayChannelMessage(c.Info().channelId, targetTimestamp, inverse, volume, ""))
-	if len(cp.tfs) == 0 {
-		cp = nil
+func (c *Channel) ReplayChannelMessage(targetTimestamp int64, inverse bool, volume omega.Volume) Player {
+	omg := c.omega
+	cp := &channelPlayer{
+		omega:           omg,
+		channelId:       c.Info().ChannelId(),
+		targetTimestamp: targetTimestamp,
+		inverse:         inverse,
+		volume:          volume,
+		loadFutureFunc: func(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) base.SendFuture {
+			return omg.Agent().ReplayChannelMessage(channelId, targetTimestamp, inverse, volume, nextId)
+		},
 	}
 
 	return cp
@@ -188,7 +184,7 @@ func (c *Channel) init() {
 		}
 
 		// has same channelId
-		if tfdEChId := tfdE.Field(0).Elem().FieldByName("GetChannelId"); tfdEChId.IsValid() && tfdEChId.String() == c.Id() {
+		if tfdEChId := tfdE.Field(0).Elem().FieldByName("ChannelId"); tfdEChId.IsValid() && tfdEChId.String() == c.Id() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
@@ -197,31 +193,12 @@ func (c *Channel) init() {
 					c.info.createdAt = tfd.GetCreatedAt()
 				}
 
-				var rcf messages.ChannelFrame
-				switch tf.GetData().(type) {
-				case *omega.TransitFrame_ChannelCount:
-					rcf = &messages.ChannelCount{}
-				case *omega.TransitFrame_ChannelMessage:
-					rcf = &messages.ChannelMessage{}
-				case *omega.TransitFrame_ChannelOwnerMessage:
-					rcf = &messages.ChannelOwnerMessage{}
-				case *omega.TransitFrame_GetChannelMeta:
-					rcf = &messages.GetChannelMeta{}
-				case *omega.TransitFrame_JoinChannel:
-					rcf = &messages.JoinChannel{}
-				case *omega.TransitFrame_LeaveChannel:
-					rcf = &messages.LeaveChannel{}
-				case *omega.TransitFrame_CloseChannel:
-					rcf = &messages.CloseChannel{}
+				if ctf := getParsedTransitFrameFromBaseTransitFrame(tf).Cast().ChannelFrame(); ctf != nil {
+					c.watch(ctf)
+				} else {
+					kklogger.WarnJ("kumoi:Channel.init", fmt.Sprintf("%s should not be here", tf.String()))
 				}
 
-				if rcf != nil {
-					if tfp, ok := rcf.(messages.TransitFrameParsable); ok {
-						tfp.ParseTransitFrame(tf)
-					}
-				}
-
-				c.watch(rcf)
 				if tfd := tf.GetLeaveChannel(); tfd != nil {
 					c.onLeave()
 					c.deInit()
@@ -256,52 +233,56 @@ func (c *Channel) deInit() {
 	c.omega.onMessageHandlers.Delete(c.Id())
 }
 
-type TFPlayer interface {
-	Next() TFPlayerEntity
+type Player interface {
+	Next() messages.TransitFrame
 }
 
-type TFPlayerEntity interface {
-	Name() string
-	TransitFrame() *omega.TransitFrame
+type channelPlayer struct {
+	omega           *Omega
+	channelId       string
+	targetTimestamp int64
+	inverse         bool
+	volume          omega.Volume
+	nextId          string
+	cursor          int
+	loadFutureFunc  func(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) base.SendFuture
+	tfs             []*omega.TransitFrame
+	eof             bool
 }
 
-type ChannelPlayer struct {
-	omega     *Omega
-	channelId string
-	nextId    string
-	cursor    int
-	tfs       []*omega.TransitFrame
-}
-
-func (c *ChannelPlayer) Next() TFPlayerEntity {
-	if c.cursor < len(c.tfs) {
-		cpe := &ChannelPlayerEntity{tf: c.tfs[c.cursor]}
-		c.cursor++
-		return cpe
-	} else if c.cursor == len(c.tfs) && len(c.tfs) > 0 {
-		c.cursor = 0
-		c.tfs = nil
-		if c.nextId == "" {
-			return nil
-		}
-
-		c.load(c.omega.Agent().ReplayChannelMessage(c.channelId, 0, false, omega.Volume_VolumePeek, c.nextId))
-		return c.Next()
+func (p *channelPlayer) Next() (t messages.TransitFrame) {
+	if p.eof {
+		return
 	}
 
-	return nil
+	if p.cursor < len(p.tfs) {
+		t = getParsedTransitFrameFromBaseTransitFrame(p.tfs[p.cursor])
+		p.cursor++
+		return
+	} else if p.cursor == len(p.tfs) && len(p.tfs) > 0 {
+		p.cursor = 0
+		p.tfs = nil
+		if p.nextId == "" {
+			p.eof = true
+			return
+		}
+	}
+
+	p.load(p.loadFutureFunc(p.channelId, p.targetTimestamp, p.inverse, p.volume, p.nextId))
+	return p.Next()
 }
 
-func (c *ChannelPlayer) load(f base.SendFuture) {
+func (p *channelPlayer) load(f base.SendFuture) {
 	bwg := concurrent.WaitGroup{}
 	transitId := f.SentTransitFrame().GetTransitId()
-	refId := ""
+	var refId []byte
 	totalCount := int32(0)
 	loadCount := int32(0)
 	rcf := concurrent.NewFuture()
-	c.omega.onMessageHandlers.Store(fmt.Sprintf("load-%d", transitId), func(tf *omega.TransitFrame) {
+	player := p
+	player.omega.onMessageHandlers.Store(fmt.Sprintf("load-%d", transitId), func(tf *omega.TransitFrame) {
 		if tf.GetTransitId() == transitId && tf.GetClass() == omega.TransitFrame_ClassResponse {
-			refId = hex.EncodeToString(tf.GetMessageId())
+			refId = tf.GetMessageId()
 			switch rcm := tf.GetData().(type) {
 			case *omega.TransitFrame_ReplayChannelMessage:
 				totalCount = rcm.ReplayChannelMessage.GetCount()
@@ -312,124 +293,32 @@ func (c *ChannelPlayer) load(f base.SendFuture) {
 			if totalCount > 0 {
 				bwg.Add(int(totalCount))
 			} else {
-				c.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
+				player.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
 			}
 
 			rcf.Completable().Complete(nil)
 		}
 
-		if len(tf.GetRefererMessageId()) > 0 && hex.EncodeToString(tf.GetRefererMessageId()) == refId {
-			c.tfs = append(c.tfs, tf)
+		if len(tf.GetRefererMessageId()) > 0 && bytes.Compare(tf.GetRefererMessageId(), refId) == 0 {
+			player.tfs = append(player.tfs, tf)
 			loadCount++
 			bwg.Done()
 			if loadCount == totalCount {
-				c.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
+				player.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
 			}
 		}
 	})
 
-	if v := f.Get(); v != nil {
+	if v := f.GetTimeout(base.DefaultTransitTimeout); v != nil {
 		go func() {
 			<-time.After(base.DefaultTransitTimeout)
 			rcf.Completable().Fail(base.ErrTransitTimeout)
 			bwg.Reset()
 		}()
 
-		rcf.Await()
+		rcf.AwaitTimeout(base.DefaultTransitTimeout)
 		bwg.Wait()
-	} else {
-		c.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
-	}
-}
-
-type ChannelPlayerEntity struct {
-	tf *omega.TransitFrame
-}
-
-func (e *ChannelPlayerEntity) TransitFrame() *omega.TransitFrame {
-	return e.tf
-}
-
-func (e *ChannelPlayerEntity) Name() string {
-	tfd := reflect.ValueOf(e.tf.GetData())
-	if !tfd.IsValid() {
-		return ""
 	}
 
-	tfdE := tfd.Elem()
-	if tfdE.NumField() == 0 {
-		return ""
-	}
-
-	return tfdE.Field(0).Elem().Type().Name()
-}
-
-func (e *ChannelPlayerEntity) GetChannelMessage() *messages.ChannelMessage {
-	if cm := e.tf.GetChannelMessage(); cm != nil {
-		r := &messages.ChannelMessage{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
-}
-
-func (e *ChannelPlayerEntity) GetOwnerChannelMessage() *messages.ChannelOwnerMessage {
-	if cm := e.tf.GetChannelMessage(); cm != nil {
-		r := &messages.ChannelOwnerMessage{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
-}
-
-func (e *ChannelPlayerEntity) GetSetChannelMeta() *messages.SetChannelMeta {
-	if cm := e.tf.GetSetChannelMeta(); cm != nil {
-		r := &messages.SetChannelMeta{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
-}
-
-func (e *ChannelPlayerEntity) GetGetChannelMeta() *messages.GetChannelMeta {
-	if cm := e.tf.GetGetChannelMeta(); cm != nil {
-		r := &messages.GetChannelMeta{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
-}
-
-func (e *ChannelPlayerEntity) GetJoinChannel() *messages.JoinChannel {
-	if cm := e.tf.GetJoinChannel(); cm != nil {
-		r := &messages.JoinChannel{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
-}
-
-func (e *ChannelPlayerEntity) GetLeaveChannel() *messages.LeaveChannel {
-	if cm := e.tf.GetLeaveChannel(); cm != nil {
-		r := &messages.LeaveChannel{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
-}
-
-func (e *ChannelPlayerEntity) GetCloseChannel() *messages.CloseChannel {
-	if cm := e.tf.GetCloseChannel(); cm != nil {
-		r := &messages.CloseChannel{}
-		r.ParseTransitFrame(e.tf)
-		return r
-	}
-
-	return nil
+	p.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
 }

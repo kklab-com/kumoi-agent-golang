@@ -19,4 +19,5 @@ func (c *GetChannelMeta) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.CreatedAt = tf.GetGetChannelMeta().GetCreatedAt()
 	c.Skill = tf.GetGetChannelMeta().GetSkill()
 	c.channelTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

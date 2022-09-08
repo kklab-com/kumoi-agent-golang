@@ -3,8 +3,8 @@ package kumoi
 import (
 	"sync"
 
-	"github.com/kklab-com/gone-core/channel"
 	concurrent "github.com/kklab-com/goth-concurrent"
+	"github.com/kklab-com/goth-kkutil/value"
 	kkpanic "github.com/kklab-com/goth-panic"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
@@ -32,12 +32,16 @@ func (f *DefaultOmegaFuture) Omega() *Omega {
 
 type Omega struct {
 	agent                   base.Agent
-	opL                     sync.Mutex
-	closed                  bool
 	onMessageHandlers       sync.Map
+	OnMessageHandler        func(tf *omega.TransitFrame)
 	OnSessionMessageHandler func(tf *messages.SessionMessage)
 	OnBroadcastHandler      func(tf *messages.Broadcast)
 	OnClosedHandler         func()
+	OnErrorHandler          func(err error)
+}
+
+func NewOmega(agent base.Agent) *Omega {
+	return (&Omega{}).initWithAgent(agent)
 }
 
 func (o *Omega) initWithAgent(agent base.Agent) *Omega {
@@ -46,6 +50,11 @@ func (o *Omega) initWithAgent(agent base.Agent) *Omega {
 	}
 
 	o.agent = agent
+	if o.OnMessageHandler == nil {
+		o.OnMessageHandler = func(tf *omega.TransitFrame) {
+		}
+	}
+
 	if o.OnSessionMessageHandler == nil {
 		o.OnSessionMessageHandler = func(tf *messages.SessionMessage) {
 		}
@@ -61,35 +70,31 @@ func (o *Omega) initWithAgent(agent base.Agent) *Omega {
 		}
 	}
 
-	o.agent.OnSessionMessage(o.invokeOnSessionMessage)
-	o.agent.OnBroadcast(o.invokeOnBroadcast)
-	o.agent.OnClosed(o.disconnectedProcess)
-	o.agent.OnClosed(o.invokeOnDisconnected)
-	o.agent.OnMessage(func(tf *omega.TransitFrame) {
-		o.onMessageHandlers.Range(func(key, value interface{}) bool {
-			defer kkpanic.Log()
-			if c, ok := value.(func(tf *omega.TransitFrame)); ok {
-				c(tf)
-			}
+	if o.OnErrorHandler == nil {
+		o.OnErrorHandler = func(err error) {
+		}
+	}
 
-			return true
-		})
-	})
-
-	return o
+	omg := o
+	omg.agent.OnMessage(omg.invokeOnMessage)
+	omg.agent.OnSessionMessage(omg.invokeOnSessionMessage)
+	omg.agent.OnBroadcast(omg.invokeOnBroadcast)
+	omg.agent.OnClosed(omg.invokeOnClosed)
+	omg.agent.OnError(omg.invokeOnError)
+	return omg
 }
 
 func (o *Omega) Agent() base.Agent {
 	return o.agent
 }
 
-func (o *Omega) GetAgentSession() AgentSession {
-	return &agentSession{session: o.agent.Session()}
+func (o *Omega) Session() Session {
+	return &session{remoteSession: remoteSession[base.Session]{session: o.agent.Session()}}
 }
 
-func (o *Omega) GetRemoteSession(sessionId string) RemoteSession {
-	if session := o.Agent().GetRemoteSession(sessionId).Session(); session != nil {
-		return &remoteSession{session: session}
+func (o *Omega) GetRemoteSession(sessionId string) RemoteSession[base.RemoteSession] {
+	if session := o.agent.GetRemoteSession(sessionId).Session(); session != nil {
+		return &remoteSession[base.RemoteSession]{session: session}
 	}
 
 	return nil
@@ -103,31 +108,17 @@ func (o *Omega) Broadcast(msg string) bool {
 	return o.agent.Broadcast(msg).Await().IsSuccess()
 }
 
-func (o *Omega) Hello() *messages.Hello {
-	if v := o.agent.Hello().Await().Get(); v != nil {
-		tf := v.(*omega.TransitFrame)
-		r := &messages.Hello{}
-		r.ParseTransitFrame(tf)
-		return r
-	}
-
-	return nil
+func (o *Omega) Hello() SendFuture[*messages.Hello] {
+	return wrapSendFuture[*messages.Hello](o.agent.Hello())
 }
 
-func (o *Omega) ServerTime() *messages.Time {
-	if v := o.agent.ServerTime().Await().Get(); v != nil {
-		tf := v.(*omega.TransitFrame)
-		r := &messages.Time{}
-		r.ParseTransitFrame(tf)
-		return r
-	}
-
-	return nil
+func (o *Omega) ServerTime() SendFuture[*messages.ServerTime] {
+	return wrapSendFuture[*messages.ServerTime](o.agent.ServerTime())
 }
 
 func (o *Omega) GetChannel(channelId string) *ChannelInfo {
 	if v := o.agent.GetChannelMetadata(channelId).Get(); v != nil {
-		meta := castTransitFrame(v).GetGetChannelMeta()
+		meta := value.Cast[*omega.TransitFrame](v).GetGetChannelMeta()
 		channelInfo := &ChannelInfo{
 			channelId: meta.GetChannelId(),
 			name:      meta.GetName(),
@@ -144,7 +135,7 @@ func (o *Omega) GetChannel(channelId string) *ChannelInfo {
 
 func (o *Omega) GetVote(voteId string) *VoteInfo {
 	if v := o.agent.GetVoteMetadata(voteId).Get(); v != nil {
-		meta := castTransitFrame(v).GetGetVoteMeta()
+		meta := value.Cast[*omega.TransitFrame](v).GetGetVoteMeta()
 		voteInfo := &VoteInfo{
 			voteId:    meta.GetVoteId(),
 			name:      meta.GetName(),
@@ -166,35 +157,43 @@ func (o *Omega) GetVote(voteId string) *VoteInfo {
 	return nil
 }
 
-func (o *Omega) PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume) TFPlayer {
-	cp := &ChannelPlayer{
-		omega:     o,
-		channelId: channelId,
-	}
-
-	cp.load(o.Agent().PlaybackChannelMessage(channelId, targetTimestamp, inverse, volume, ""))
-	if len(cp.tfs) == 0 {
-		cp = nil
+func (o *Omega) PlaybackChannelMessage(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume) Player {
+	omg := o
+	cp := &channelPlayer{
+		omega:           omg,
+		channelId:       channelId,
+		targetTimestamp: targetTimestamp,
+		inverse:         inverse,
+		volume:          volume,
+		loadFutureFunc: func(channelId string, targetTimestamp int64, inverse bool, volume omega.Volume, nextId string) base.SendFuture {
+			return omg.agent.PlaybackChannelMessage(channelId, targetTimestamp, inverse, volume, nextId)
+		},
 	}
 
 	return cp
 }
 
 func (o *Omega) Close() concurrent.Future {
-	o.closed = true
-	return o.Agent().Close()
+	return o.agent.Close()
 }
 
 // IsClosed
 // omega is closed or not
 func (o *Omega) IsClosed() bool {
-	return o.closed
+	return o.agent.IsClosed()
 }
 
-// IsDisconnected
-// session is active or not
-func (o *Omega) IsDisconnected() bool {
-	return !o.Agent().Session().Ch().IsActive()
+func (o *Omega) invokeOnMessage(tf *omega.TransitFrame) {
+	o.onMessageHandlers.Range(func(key, value any) bool {
+		defer kkpanic.Log()
+		if c, ok := value.(func(tf *omega.TransitFrame)); ok {
+			c(tf)
+		}
+
+		return true
+	})
+
+	o.OnMessageHandler(tf)
 }
 
 func (o *Omega) invokeOnSessionMessage(tf *omega.TransitFrame) {
@@ -209,8 +208,12 @@ func (o *Omega) invokeOnBroadcast(tf *omega.TransitFrame) {
 	o.OnBroadcastHandler(r)
 }
 
-func (o *Omega) invokeOnDisconnected() {
+func (o *Omega) invokeOnClosed() {
 	o.OnClosedHandler()
+}
+
+func (o *Omega) invokeOnError(err error) {
+	o.OnErrorHandler(err)
 }
 
 type CreateChannelFuture interface {
@@ -250,9 +253,9 @@ func (f *DefaultCreateChannelFuture) Join() *Channel {
 }
 
 func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) CreateChannelFuture {
-	cf := o.Agent().CreateChannel(createChannel)
+	cf := o.agent.CreateChannel(createChannel)
 	ccf := &DefaultCreateChannelFuture{
-		Future: channel.NewFuture(nil),
+		Future: concurrent.NewFuture(),
 		omega:  o,
 	}
 
@@ -306,9 +309,9 @@ func (f *DefaultCreateVoteFuture) Join() *Vote {
 }
 
 func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
-	vf := o.Agent().CreateVote(createVote)
+	vf := o.agent.CreateVote(createVote)
 	cvf := &DefaultCreateVoteFuture{
-		Future: channel.NewFuture(nil),
+		Future: concurrent.NewFuture(),
 		omega:  o,
 	}
 
@@ -323,9 +326,6 @@ func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
 	}))
 
 	return cvf
-}
-
-func (o *Omega) disconnectedProcess() {
 }
 
 type OmegaBuilder struct {
@@ -348,7 +348,7 @@ func (b *OmegaBuilder) Connect() OmegaFuture {
 	of := &DefaultOmegaFuture{Future: concurrent.NewFuture()}
 	base.NewAgentBuilder(b.engine).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
-			of.Completable().Complete((&Omega{}).initWithAgent(f.Get().(base.Agent)))
+			of.Completable().Complete(NewOmega(f.Get().(base.Agent)))
 		} else if f.IsCancelled() {
 			of.Completable().Cancel()
 		} else if f.IsFail() {
@@ -359,14 +359,68 @@ func (b *OmegaBuilder) Connect() OmegaFuture {
 	return of
 }
 
-func castTransitFrame(v interface{}) *omega.TransitFrame {
-	if v == nil {
+func getParsedTransitFrameFromBaseTransitFrame(btf *omega.TransitFrame) messages.TransitFrame {
+	if btf == nil {
 		return nil
 	}
 
-	if c, ok := v.(*omega.TransitFrame); ok {
-		return c
+	var tf messages.TransitFrame
+	switch btf.GetData().(type) {
+	case *omega.TransitFrame_Broadcast:
+		tf = &messages.Broadcast{}
+	case *omega.TransitFrame_Hello:
+		tf = &messages.Hello{}
+	case *omega.TransitFrame_ServerTime:
+		tf = &messages.ServerTime{}
+	case *omega.TransitFrame_JoinChannel:
+		tf = &messages.JoinChannel{}
+	case *omega.TransitFrame_GetChannelMeta:
+		tf = &messages.GetChannelMeta{}
+	case *omega.TransitFrame_SetChannelMeta:
+		tf = &messages.SetChannelMeta{}
+	case *omega.TransitFrame_ChannelMessage:
+		tf = &messages.ChannelMessage{}
+	case *omega.TransitFrame_ChannelOwnerMessage:
+		tf = &messages.ChannelOwnerMessage{}
+	case *omega.TransitFrame_ChannelCount:
+		tf = &messages.ChannelCount{}
+	case *omega.TransitFrame_LeaveChannel:
+		tf = &messages.LeaveChannel{}
+	case *omega.TransitFrame_CloseChannel:
+		tf = &messages.CloseChannel{}
+	case *omega.TransitFrame_JoinVote:
+		tf = &messages.JoinVote{}
+	case *omega.TransitFrame_GetVoteMeta:
+		tf = &messages.GetVoteMeta{}
+	case *omega.TransitFrame_SetVoteMeta:
+		tf = &messages.SetVoteMeta{}
+	case *omega.TransitFrame_VoteMessage:
+		tf = &messages.VoteMessage{}
+	case *omega.TransitFrame_VoteOwnerMessage:
+		tf = &messages.VoteOwnerMessage{}
+	case *omega.TransitFrame_VoteCount:
+		tf = &messages.VoteCount{}
+	case *omega.TransitFrame_VoteSelect:
+		tf = &messages.VoteSelect{}
+	case *omega.TransitFrame_VoteStatus:
+		tf = &messages.VoteStatus{}
+	case *omega.TransitFrame_LeaveVote:
+		tf = &messages.LeaveVote{}
+	case *omega.TransitFrame_CloseVote:
+		tf = &messages.CloseVote{}
+	case *omega.TransitFrame_GetSessionMeta:
+		tf = &messages.GetSessionMeta{}
+	case *omega.TransitFrame_SetSessionMeta:
+		tf = &messages.SetSessionMeta{}
+	case *omega.TransitFrame_SessionMessage:
+		tf = &messages.SessionMessage{}
 	}
 
-	return nil
+	if tf != nil {
+		if tfp, ok := tf.(messages.TransitFrameParsable); ok {
+			tfp.ParseTransitFrame(btf)
+		}
+	}
+
+	return tf
 }

@@ -13,6 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestOmega_Session(t *testing.T) {
+	o := NewOmegaBuilder(engine).Connect().Omega()
+	o.Close().Await()
+}
+
 func TestOmega_RemoteSession(t *testing.T) {
 	ro := NewOmegaBuilder(engine).Connect().Omega()
 	so := NewOmegaBuilder(engine).Connect().Omega()
@@ -22,14 +27,14 @@ func TestOmega_RemoteSession(t *testing.T) {
 	gc := 0
 
 	bwg := concurrent.WaitGroup{}
-	ro.GetAgentSession().OnMessage(func(msg *messages.SessionMessage) {
+	ro.Session().OnMessage(func(msg *messages.SessionMessage) {
 		println(msg.Message)
 		bwg.Done()
 		got = true
 		gc++
 	})
 
-	srs := so.GetRemoteSession(ro.GetAgentSession().GetId())
+	srs := so.GetRemoteSession(ro.Session().GetId())
 	assert.NotNil(t, srs)
 	for i := 0; i < 10; i++ {
 		bwg.Add(1)
@@ -115,7 +120,7 @@ func TestOmega_MultiSession(t *testing.T) {
 
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				if ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil) == false {
+				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil).AwaitTimeout(Timeout * 10).IsSuccess() {
 					assert.Fail(t, "send fail")
 				}
 
@@ -127,7 +132,6 @@ func TestOmega_MultiSession(t *testing.T) {
 			wrd.Wait()
 			wcd.Done()
 			wcd.Wait()
-			assert.False(t, og.IsDisconnected())
 			og.Close().Await()
 			bwg.Done()
 		}(i)
@@ -161,7 +165,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 	}
 
 	thread := 100
-	times := 100
+	times := 50
 	bwg.Add(thread)
 	wjd := concurrent.WaitGroup{}
 	wjd.Add(thread)
@@ -169,9 +173,9 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 	wcd.Add(thread)
 
 	go func() {
-		<-time.After(time.Second * 3)
+		<-time.After(time.Second * 10)
 		if c := wjd.Remain(); c > 0 {
-			assert.Fail(t, fmt.Sprintf("wjd %d", c))
+			assert.Fail(t, fmt.Sprintf("fail all connect, wjd %d", c))
 		}
 
 		wjd.Reset()
@@ -181,8 +185,10 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 		go func(ii int) {
 			og := NewOmegaBuilder(engine).Connect().Omega()
 			ch := og.GetChannel(och.Id()).Join("")
+			println(fmt.Sprintf("%s connected", og.Session().GetId()))
 			wjd.Done()
 			wjd.Wait()
+			println("all connected, go")
 			if ch == nil {
 				assert.Fail(t, "get ch nil")
 				return
@@ -216,7 +222,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 			<-time.After(time.Second * 3)
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				assert.Equal(t, thread+1, int(ch.GetCount().Count))
+				assert.Equal(t, thread+1, int(ch.GetCount().TransitFrame().Count))
 				if ii == 0 {
 					println(fmt.Sprintf("round %d done", ir+1))
 				}
@@ -225,7 +231,6 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 			wrd.Wait()
 			wcd.Done()
 			wcd.Wait()
-			assert.False(t, og.IsDisconnected())
 			og.Close().Await()
 			bwg.Done()
 		}(i)

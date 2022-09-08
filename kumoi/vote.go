@@ -1,9 +1,12 @@
 package kumoi
 
 import (
+	"fmt"
 	"reflect"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
+	kklogger "github.com/kklab-com/goth-kklogger"
+	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -40,7 +43,7 @@ func (v *VoteInfo) CreatedAt() int64 {
 
 func (v *VoteInfo) Join(key string) *Vote {
 	if get := v.omega.Agent().JoinVote(v.VoteId(), key).Get(); get != nil {
-		if jv := get.(*omega.TransitFrame).GetJoinVote(); jv != nil {
+		if jv := value.Cast[*omega.TransitFrame](get).GetJoinVote(); jv != nil {
 			nv := *v
 			vt := &Vote{
 				key:     key,
@@ -94,47 +97,41 @@ func (v *Vote) Name() string {
 	return v.Info().name
 }
 
-func (v *Vote) SetName(name string) bool {
-	if v.omega.Agent().SetVoteMetadata(v.Info().voteId, name, nil).Await().IsSuccess() {
-		v.info.name = name
-		return true
-	}
+func (v *Vote) SetName(name string) SendFuture[*messages.SetVoteMeta] {
+	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().voteId, name, nil))
 
-	return false
+}
+
+func (v *Vote) Fetch() SendFuture[*messages.GetVoteMeta] {
+	return wrapSendFuture[*messages.GetVoteMeta](v.omega.Agent().GetVoteMetadata(v.Id()))
 }
 
 func (v *Vote) Metadata() *base.Metadata {
 	return v.info.Metadata()
 }
 
-func (v *Vote) SetMetadata(meta *base.Metadata) bool {
-	return v.omega.Agent().SetVoteMetadata(v.Info().voteId, "", meta).Await().IsSuccess()
+func (v *Vote) SetMetadata(meta *base.Metadata) SendFuture[*messages.SetVoteMeta] {
+	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().voteId, "", meta))
 }
 
-func (v *Vote) Leave() bool {
-	return v.omega.Agent().LeaveVote(v.Info().voteId).Await().IsSuccess()
+func (v *Vote) Leave() SendFuture[*messages.LeaveVote] {
+	return wrapSendFuture[*messages.LeaveVote](v.omega.Agent().LeaveVote(v.Info().voteId))
 }
 
-func (v *Vote) Close() bool {
-	return v.omega.Agent().CloseVote(v.Info().voteId, v.key).Await().IsSuccess()
+func (v *Vote) Close() SendFuture[*messages.CloseVote] {
+	return wrapSendFuture[*messages.CloseVote](v.omega.Agent().CloseVote(v.Info().voteId, v.key))
 }
 
-func (v *Vote) SendMessage(msg string) bool {
-	return v.omega.Agent().VoteMessage(v.Info().voteId, msg).Await().IsSuccess()
+func (v *Vote) SendMessage(msg string) SendFuture[*messages.VoteMessage] {
+	return wrapSendFuture[*messages.VoteMessage](v.omega.Agent().VoteMessage(v.Info().voteId, msg))
 }
 
-func (v *Vote) SendOwnerMessage(msg string) bool {
-	return v.omega.Agent().VoteOwnerMessage(v.Info().voteId, msg).Await().IsSuccess()
+func (v *Vote) SendOwnerMessage(msg string) SendFuture[*messages.VoteOwnerMessage] {
+	return wrapSendFuture[*messages.VoteOwnerMessage](v.omega.Agent().VoteOwnerMessage(v.Info().voteId, msg))
 }
 
-func (v *Vote) GetCount() *messages.VoteCount {
-	if tf := castTransitFrame(v.omega.Agent().VoteCount(v.Info().voteId).Get()); tf != nil {
-		r := &messages.VoteCount{}
-		r.ParseTransitFrame(tf)
-		return r
-	}
-
-	return nil
+func (v *Vote) GetCount() SendFuture[*messages.VoteCount] {
+	return wrapSendFuture[*messages.VoteCount](v.omega.Agent().VoteCount(v.Info().voteId))
 }
 
 func (v *Vote) Select(voteOptionId string) bool {
@@ -146,9 +143,8 @@ func (v *Vote) Select(voteOptionId string) bool {
 	return !f.Get().(*omega.TransitFrame).GetVoteSelect().Deny
 }
 
-func (v *Vote) Status(statusType omega.Vote_Status) bool {
-	f := v.omega.Agent().VoteStatus(v.Info().voteId, statusType).Await()
-	return f.IsSuccess()
+func (v *Vote) Status(statusType omega.Vote_Status) SendFuture[*messages.VoteStatus] {
+	return wrapSendFuture[*messages.VoteStatus](v.omega.Agent().VoteStatus(v.Info().voteId, statusType))
 }
 
 func (v *Vote) OnLeave(f func()) *Vote {
@@ -215,35 +211,11 @@ func (v *Vote) init() {
 					v.info.voteOptions = vtos
 				}
 
-				var vf messages.VoteFrame
-				switch tf.GetData().(type) {
-				case *omega.TransitFrame_VoteCount:
-					vf = &messages.VoteCount{}
-				case *omega.TransitFrame_VoteMessage:
-					vf = &messages.VoteMessage{}
-				case *omega.TransitFrame_VoteOwnerMessage:
-					vf = &messages.VoteOwnerMessage{}
-				case *omega.TransitFrame_GetVoteMeta:
-					vf = &messages.GetVoteMeta{}
-				case *omega.TransitFrame_JoinVote:
-					vf = &messages.JoinVote{}
-				case *omega.TransitFrame_LeaveVote:
-					vf = &messages.LeaveVote{}
-				case *omega.TransitFrame_CloseVote:
-					vf = &messages.CloseVote{}
-				case *omega.TransitFrame_VoteStatus:
-					vf = &messages.VoteStatus{}
-				case *omega.TransitFrame_VoteSelect:
-					vf = &messages.VoteSelect{}
+				if vtf := getParsedTransitFrameFromBaseTransitFrame(tf).Cast().VoteFrame(); vtf != nil {
+					v.watch(vtf)
+				} else {
+					kklogger.WarnJ("kumoi:Vote.init", fmt.Sprintf("%s should not be here", tf.String()))
 				}
-
-				if vf != nil {
-					if tfp, ok := vf.(messages.TransitFrameParsable); ok {
-						tfp.ParseTransitFrame(tf)
-					}
-				}
-
-				v.watch(vf)
 
 				if tfd := tf.GetLeaveVote(); tfd != nil {
 					v.onLeave()

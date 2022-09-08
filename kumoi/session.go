@@ -1,63 +1,128 @@
 package kumoi
 
 import (
+	"reflect"
+	"time"
+
 	concurrent "github.com/kklab-com/goth-concurrent"
+	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
 
-type RemoteSession interface {
-	Base() base.RemoteSession
-	GetId() string
-	GetSubject() string
-	GetName() string
-	GetMetadata() *base.Metadata
-	OnMessage(f func(msg *messages.SessionMessage))
-	SendMessage(message string) base.SendFuture
+type SendFuture[T messages.TransitFrame] interface {
+	Base() base.SendFuture
+	Await() SendFuture[T]
+	AwaitTimeout(timeout time.Duration) SendFuture[T]
+	IsDone() bool
+	IsSuccess() bool
+	IsCancelled() bool
+	IsFail() bool
+	Error() error
+	TransitFrame() (t T)
 }
 
-type AgentSession interface {
-	Base() base.Session
+func wrapSendFuture[T messages.TransitFrame](sf base.SendFuture) (t SendFuture[T]) {
+	return value.Cast[SendFuture[T]](&DefaultSendFuture[T]{bf: sf})
+}
+
+type DefaultSendFuture[T messages.TransitFrame] struct {
+	bf base.SendFuture
+}
+
+func (f *DefaultSendFuture[T]) Base() base.SendFuture {
+	return f.bf
+}
+
+func (f *DefaultSendFuture[T]) Await() SendFuture[T] {
+	f.Base().Await()
+	return f
+}
+
+func (f *DefaultSendFuture[T]) AwaitTimeout(timeout time.Duration) SendFuture[T] {
+	f.Base().AwaitTimeout(timeout)
+	return f
+}
+
+func (f *DefaultSendFuture[T]) IsDone() bool {
+	return f.Base().IsDone()
+}
+
+func (f *DefaultSendFuture[T]) IsSuccess() bool {
+	return f.Base().IsSuccess()
+}
+
+func (f *DefaultSendFuture[T]) IsCancelled() bool {
+	return f.Base().IsCancelled()
+}
+
+func (f *DefaultSendFuture[T]) IsFail() bool {
+	return f.Base().IsFail()
+}
+
+func (f *DefaultSendFuture[T]) Error() error {
+	return f.Base().Error()
+}
+
+func (f *DefaultSendFuture[T]) TransitFrame() (t T) {
+	var an any
+	if btf := f.bf.TransitFrame(); btf != nil {
+		an = reflect.New(reflect.TypeOf(t).Elem()).Interface()
+		value.Cast[messages.TransitFrameParsable](an).ParseTransitFrame(btf)
+	}
+
+	t = value.Cast[T](an)
+	return
+}
+
+type RemoteSession[T base.RemoteSession] interface {
+	Base() T
 	GetId() string
 	GetSubject() string
 	GetName() string
 	GetMetadata() *base.Metadata
 	OnMessage(f func(msg *messages.SessionMessage))
-	SendMessage(message string) base.SendFuture
-	SetName(name string) base.SendFuture
-	SetMetadata(metadata *base.Metadata) base.SendFuture
-	OnDisconnected(f func())
+	SendMessage(message string) SendFuture[*messages.SessionMessage]
+	Fetch() SendFuture[*messages.GetSessionMeta]
+}
+
+type Session interface {
+	RemoteSession[base.Session]
+	SetName(name string) SendFuture[*messages.SetSessionMeta]
+	SetMetadata(metadata *base.Metadata) SendFuture[*messages.SetSessionMeta]
+	OnRead(f func(th *omega.TransitFrame))
+	OnClosed(f func())
 	OnError(f func(err error))
-	Disconnect() concurrent.Future
+	Close() concurrent.Future
 }
 
-type remoteSession struct {
+type remoteSession[T base.RemoteSession] struct {
 	session base.RemoteSession
 }
 
-func (r *remoteSession) Base() base.RemoteSession {
-	return r.session
+func (s *remoteSession[T]) Base() T {
+	return value.Cast[T](s.session)
 }
 
-func (r *remoteSession) GetId() string {
-	return r.session.GetId()
+func (s *remoteSession[T]) GetId() string {
+	return s.session.GetId()
 }
 
-func (r *remoteSession) GetSubject() string {
-	return r.session.GetSubject()
+func (s *remoteSession[T]) GetSubject() string {
+	return s.session.GetSubject()
 }
 
-func (r *remoteSession) GetName() string {
-	return r.session.GetName()
+func (s *remoteSession[T]) GetName() string {
+	return s.session.GetName()
 }
 
-func (r *remoteSession) GetMetadata() *base.Metadata {
-	return r.session.GetMetadata()
+func (s *remoteSession[T]) GetMetadata() *base.Metadata {
+	return s.session.GetMetadata()
 }
 
-func (r *remoteSession) OnMessage(f func(msg *messages.SessionMessage)) {
-	r.session.OnMessage(func(msg *omega.TransitFrame) {
+func (s *remoteSession[T]) OnMessage(f func(msg *messages.SessionMessage)) {
+	s.session.OnMessage(func(msg *omega.TransitFrame) {
 		if sm := msg.GetSessionMessage(); sm != nil {
 			nsm := &messages.SessionMessage{}
 			nsm.ParseTransitFrame(msg)
@@ -66,64 +131,42 @@ func (r *remoteSession) OnMessage(f func(msg *messages.SessionMessage)) {
 	})
 }
 
-func (r *remoteSession) SendMessage(message string) base.SendFuture {
-	return r.session.SendMessage(message)
+func (s *remoteSession[T]) SendMessage(message string) SendFuture[*messages.SessionMessage] {
+	return wrapSendFuture[*messages.SessionMessage](s.session.SendMessage(message))
 }
 
-type agentSession struct {
-	session base.Session
+func (s *remoteSession[T]) Fetch() SendFuture[*messages.GetSessionMeta] {
+	return wrapSendFuture[*messages.GetSessionMeta](s.session.Fetch())
 }
 
-func (r *agentSession) Base() base.Session {
-	return r.session
+type session struct {
+	remoteSession[base.Session]
 }
 
-func (r *agentSession) GetId() string {
-	return r.session.GetId()
+func (s *session) getCastSession() base.Session {
+	return value.Cast[base.Session](s.remoteSession.session)
 }
 
-func (r *agentSession) GetSubject() string {
-	return r.session.GetSubject()
+func (s *session) SetName(name string) SendFuture[*messages.SetSessionMeta] {
+	return wrapSendFuture[*messages.SetSessionMeta](s.getCastSession().SetName(name))
 }
 
-func (r *agentSession) GetName() string {
-	return r.session.GetName()
+func (s *session) SetMetadata(metadata *base.Metadata) SendFuture[*messages.SetSessionMeta] {
+	return wrapSendFuture[*messages.SetSessionMeta](s.getCastSession().SetMetadata(metadata))
 }
 
-func (r *agentSession) GetMetadata() *base.Metadata {
-	return r.session.GetMetadata()
+func (s *session) OnRead(f func(th *omega.TransitFrame)) {
+	s.getCastSession().OnRead(f)
 }
 
-func (r *agentSession) OnMessage(f func(msg *messages.SessionMessage)) {
-	r.session.OnMessage(func(msg *omega.TransitFrame) {
-		if sm := msg.GetSessionMessage(); sm != nil {
-			nsm := &messages.SessionMessage{}
-			nsm.ParseTransitFrame(msg)
-			f(nsm)
-		}
-	})
+func (s *session) OnClosed(f func()) {
+	s.getCastSession().OnClosed(f)
 }
 
-func (r *agentSession) SendMessage(message string) base.SendFuture {
-	return r.session.SendMessage(message)
+func (s *session) OnError(f func(err error)) {
+	s.getCastSession().OnError(f)
 }
 
-func (r *agentSession) SetName(name string) base.SendFuture {
-	return r.session.SetName(name)
-}
-
-func (r *agentSession) SetMetadata(metadata *base.Metadata) base.SendFuture {
-	return r.session.SetMetadata(metadata)
-}
-
-func (r *agentSession) OnDisconnected(f func()) {
-	r.session.OnClosed(f)
-}
-
-func (r *agentSession) OnError(f func(err error)) {
-	r.session.OnError(f)
-}
-
-func (r *agentSession) Disconnect() concurrent.Future {
-	return r.session.Close()
+func (s *session) Close() concurrent.Future {
+	return s.session.Close()
 }

@@ -76,7 +76,7 @@ func TestSessionMessage(t *testing.T) {
 	})
 
 	srs := s.GetRemoteSession(rs.GetId()).Session()
-	srs.SendMessage(rmsg)
+	srs.SendMessage(rmsg).AwaitTimeout(Timeout)
 	srs.Close().AwaitTimeout(Timeout)
 	if _, f := s.(*session).remoteSessions.Load(srs.GetId()); f {
 		assert.Fail(t, "found in remoteSessions")

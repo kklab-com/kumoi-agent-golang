@@ -3,6 +3,7 @@ package base
 import (
 	concurrent "github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
+	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
@@ -26,6 +27,7 @@ func (f *DefaultAgentFuture) Agent() Agent {
 
 type Agent interface {
 	Close() concurrent.Future
+	IsClosed() bool
 	Session() Session
 	GetRemoteSession(sessionId string) RemoteSessionFuture
 	OnClosed(f func())
@@ -86,7 +88,7 @@ type agent struct {
 	onErrorHandler              func(err error)
 }
 
-func NewAgent(session Session) *agent {
+func NewAgent(session Session) Agent {
 	if session == nil {
 		return nil
 	}
@@ -98,19 +100,25 @@ func NewAgent(session Session) *agent {
 		},
 	}
 
-	session.OnMessage(func(msg *omega.TransitFrame) {
+	sfa := value.Cast[sessionForAgent](session)
+	if sfa == nil {
+		kklogger.ErrorJ("base:NewAgent", "not native session object")
+		return nil
+	}
+
+	sfa.agentOnMessage(func(msg *omega.TransitFrame) {
 		agent.invokeOnSessionMessage(msg)
 	})
 
-	session.OnRead(func(tf *omega.TransitFrame) {
+	sfa.agentOnRead(func(tf *omega.TransitFrame) {
 		agent.invokeOnRead(tf)
 	})
 
-	session.OnClosed(func() {
+	sfa.agentOnClosed(func() {
 		agent.invokeOnClosed()
 	})
 
-	session.OnError(func(err error) {
+	sfa.agentOnError(func(err error) {
 		agent.invokeOnError(err)
 	})
 
@@ -169,6 +177,10 @@ func (a *agent) invokeOnClosed() {
 
 func (a *agent) Close() concurrent.Future {
 	return a.session.Close()
+}
+
+func (a *agent) IsClosed() bool {
+	return a.session.IsClosed()
 }
 
 func (a *agent) Session() Session {

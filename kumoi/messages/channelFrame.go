@@ -7,6 +7,7 @@ import (
 )
 
 type ChannelFrame interface {
+	TransitFrame
 	GetChannelId() string
 	GetOffset() int64
 }

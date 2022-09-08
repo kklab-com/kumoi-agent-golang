@@ -12,4 +12,5 @@ func (c *SessionMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.FromSessionId = tf.GetSessionMessage().GetFromSession()
 	c.Message = tf.GetSessionMessage().GetMessage()
 	c.transitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

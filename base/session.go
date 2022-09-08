@@ -10,6 +10,7 @@ import (
 	websocket "github.com/kklab-com/gone-websocket"
 	"github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
+	"github.com/kklab-com/goth-kkutil/value"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/pkg/errors"
 )
@@ -46,6 +47,7 @@ type RemoteSession interface {
 	GetMetadata() *Metadata
 	OnMessage(f func(msg *omega.TransitFrame))
 	SendMessage(message string) SendFuture
+	Fetch() SendFuture
 	Close() concurrent.Future
 }
 
@@ -140,6 +142,12 @@ func (s *remoteSession) SendMessage(message string) SendFuture {
 		}})
 }
 
+func (s *remoteSession) Fetch() SendFuture {
+	return s.source.SendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{
+		SessionId: s.GetId(),
+	}})
+}
+
 func (s *remoteSession) Close() concurrent.Future {
 	if s.source == nil || s.source.IsClosed() {
 		return concurrent.NewFailedFuture(ErrConnectionClosed)
@@ -159,21 +167,72 @@ func newSession(engine *Engine) *session {
 	}
 }
 
+type sessionForAgent interface {
+	agentOnMessage(f func(msg *omega.TransitFrame))
+	agentOnClosed(f func())
+	agentOnRead(f func(tf *omega.TransitFrame))
+	agentOnError(f func(err error))
+}
+
 type session struct {
 	remoteSession
-	serialId                int64
-	engine                  *Engine
-	ch                      channel.Channel
-	connectFuture           concurrent.Future
-	lastActiveTimestamp     time.Time
-	workerStatus            int32
-	transitFrameWorkQueue   concurrent.BlockingQueue
-	onSessionMessageHandler func(msg *omega.TransitFrame)
-	onReadHandler           func(tf *omega.TransitFrame)
-	onClosedHandler         func()
-	onErrorHandler          func(err error)
-	transitPool             sync.Map
-	remoteSessions          sync.Map
+	serialId                     int64
+	engine                       *Engine
+	ch                           channel.Channel
+	connectFuture                concurrent.Future
+	lastActiveTimestamp          time.Time
+	workerStatus                 int32
+	transitFrameWorkQueue        concurrent.BlockingQueue
+	onSessionMessageHandler      func(tf *omega.TransitFrame)
+	onReadHandler                func(tf *omega.TransitFrame)
+	onClosedHandler              func()
+	onErrorHandler               func(err error)
+	agentOnSessionMessageHandler func(tf *omega.TransitFrame)
+	agentOnReadHandler           func(tf *omega.TransitFrame)
+	agentOnClosedHandler         func()
+	agentOnErrorHandler          func(err error)
+	transitPool                  sync.Map
+	remoteSessions               sync.Map
+}
+
+func (s *session) invokeOnSessionMessageHandler(tf *omega.TransitFrame) {
+	if s.onSessionMessageHandler != nil {
+		s.onSessionMessageHandler(tf)
+	}
+
+	if s.agentOnSessionMessageHandler != nil {
+		s.agentOnSessionMessageHandler(tf)
+	}
+}
+
+func (s *session) invokeOnReadHandler(tf *omega.TransitFrame) {
+	if s.onReadHandler != nil {
+		s.onReadHandler(tf)
+	}
+
+	if s.agentOnReadHandler != nil {
+		s.agentOnReadHandler(tf)
+	}
+}
+
+func (s *session) invokeOnClosedHandler() {
+	if s.onClosedHandler != nil {
+		s.onClosedHandler()
+	}
+
+	if s.agentOnClosedHandler != nil {
+		s.agentOnClosedHandler()
+	}
+}
+
+func (s *session) invokeOnErrorHandler(err error) {
+	if s.onErrorHandler != nil {
+		s.onErrorHandler(err)
+	}
+
+	if s.agentOnErrorHandler != nil {
+		s.agentOnErrorHandler(err)
+	}
 }
 
 func (s *session) GetRemoteSession(sessionId string) RemoteSessionFuture {
@@ -345,6 +404,12 @@ func (s *session) SendMessage(message string) SendFuture {
 		}})
 }
 
+func (s *session) Fetch() SendFuture {
+	return s.SendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{
+		SessionId: s.GetId(),
+	}})
+}
+
 func (s *session) newTransitId() uint64 {
 	return uint64(atomic.AddInt64(&s.serialId, 1))
 }
@@ -362,10 +427,25 @@ func (s *session) NewTransitFrame(class omega.TransitFrame_FrameClass, data omeg
 func (s *session) transitFramePreProcess(tf *omega.TransitFrame) {
 	// hello msg
 	if hello := tf.GetHello(); hello != nil {
+		s.id = hello.GetSessionId()
 		s.subject = hello.GetSubject()
 		s.name = hello.GetSubjectName()
-		s.id = hello.GetSessionId()
 		s.connectFuture.Completable().Complete(s)
+	}
+
+	if gsm := tf.GetGetSessionMeta(); gsm != nil {
+		if s.id == gsm.SessionId {
+			s.id = gsm.GetSessionId()
+			s.subject = gsm.GetSubject()
+			s.name = gsm.GetName()
+			s.metadata = gsm.GetData()
+		} else if v, f := s.remoteSessions.Load(s.id); f {
+			rs := value.Cast[*session](v)
+			rs.id = gsm.GetSessionId()
+			rs.subject = gsm.GetSubject()
+			rs.name = gsm.GetName()
+			rs.metadata = gsm.GetData()
+		}
 	}
 
 	// ping, auto pong reply
@@ -377,6 +457,14 @@ func (s *session) transitFramePreProcess(tf *omega.TransitFrame) {
 func (s *session) completeWhenResponseAndError(tf *omega.TransitFrame) {
 	if tf.GetClass() == omega.TransitFrame_ClassResponse {
 		if v, f := s.transitPool.LoadAndDelete(tf.GetTransitId()); f {
+			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveChannel(); stf != nil {
+				tf.GetLeaveChannel().ChannelId = stf.GetChannelId()
+			}
+
+			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveVote(); stf != nil {
+				tf.GetLeaveVote().VoteId = stf.GetVoteId()
+			}
+
 			v.(*transitPoolEntity).future.Completable().Complete(tf)
 		}
 	} else if tf.GetClass() == omega.TransitFrame_ClassError {
@@ -411,15 +499,11 @@ func (s *session) transitFrameWorker(retry bool) {
 			}
 
 			if tf, ok := v.(*omega.TransitFrame); ok {
-				if s.onReadHandler != nil {
-					s.onReadHandler(tf)
-				}
+				s.invokeOnReadHandler(tf)
 
 				if sm := tf.GetSessionMessage(); sm != nil {
 					if tf.GetClass() == omega.TransitFrame_ClassNotification {
-						if s.onSessionMessageHandler != nil {
-							s.onSessionMessageHandler(tf)
-						}
+						s.invokeOnSessionMessageHandler(tf)
 					}
 
 					if v, f := s.remoteSessions.Load(sm.GetFromSession()); f {
@@ -444,4 +528,20 @@ func (s *session) Close() concurrent.Future {
 
 func (s *session) IsClosed() bool {
 	return !s.ch.IsActive()
+}
+
+func (s *session) agentOnClosed(f func()) {
+	s.agentOnClosedHandler = f
+}
+
+func (s *session) agentOnRead(f func(tf *omega.TransitFrame)) {
+	s.agentOnReadHandler = f
+}
+
+func (s *session) agentOnError(f func(err error)) {
+	s.agentOnErrorHandler = f
+}
+
+func (s *session) agentOnMessage(f func(msg *omega.TransitFrame)) {
+	s.agentOnSessionMessageHandler = f
 }

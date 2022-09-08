@@ -16,4 +16,5 @@ func (c *VoteSelect) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Subject = tf.GetVoteSelect().GetSubject()
 	c.VoteOptionId = tf.GetVoteSelect().GetVoteOptionId()
 	c.voteTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

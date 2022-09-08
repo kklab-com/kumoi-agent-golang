@@ -23,6 +23,8 @@ var token = ""
 var domain = ""
 var engine *base.Engine
 
+const Timeout = time.Second
+
 func TestMain(m *testing.M) {
 	appId = os.Getenv("TEST_APP_ID")
 	token = os.Getenv("TEST_TOKEN")
@@ -48,9 +50,9 @@ func TestOmega(t *testing.T) {
 	chInfo := chf.Info()
 	assert.NotNil(t, chInfo)
 	ch := chInfo.Join(chf.Response().ParticipatorKey)
-	leave := false
+	vfl := concurrent.NewFuture()
 	ch.OnLeave(func() {
-		leave = true
+		vfl.Completable().Complete(nil)
 	})
 
 	ch.Watch(func(msg messages.ChannelFrame) {
@@ -59,17 +61,17 @@ func TestOmega(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.NotEqual(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendMessage("SendMessage", nil))
-	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
-	assert.False(t, ch.Close())
+	assert.True(t, ch.SendMessage("SendMessage", nil).AwaitTimeout(Timeout).IsSuccess())
+	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil).AwaitTimeout(Timeout).IsSuccess())
+	assert.False(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.Nil(t, chInfo.Join(""))
-	assert.True(t, ch.Leave())
-	assert.True(t, leave)
+	assert.True(t, ch.Leave().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vfl.AwaitTimeout(Timeout).IsSuccess())
 
 	ch = chf.Join()
-	closed := false
+	vfc := concurrent.NewFuture()
 	ch.OnClose(func() {
-		closed = true
+		vfc.Completable().Complete(nil)
 	})
 
 	ch.Watch(func(msg messages.ChannelFrame) {
@@ -78,31 +80,31 @@ func TestOmega(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.Equal(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendOwnerMessage("SendOwnerMessage", nil))
-	assert.True(t, ch.SetName("new_channel_name"))
+	assert.True(t, ch.SendOwnerMessage("SendOwnerMessage", nil).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ch.SetName("new_channel_name").AwaitTimeout(Timeout).IsSuccess())
 	println("wait for replay")
 	<-time.After(2 * time.Second)
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, int32(1), ch.GetCount().Count)
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Name(), cp.Next().(*ChannelPlayerEntity).GetSetChannelMeta().Name)
-	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
-	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
+	assert.Equal(t, int32(1), ch.GetCount().TransitFrame().Count)
+	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
+	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Nil(t, cp.Next())
-	assert.True(t, ch.Close())
+	assert.True(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())
 	println("wait for playback")
 	<-time.After(2 * time.Second)
 	cp = o.PlaybackChannelMessage(ch.Id(), math.MaxInt32, false, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
-	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().Name())
-	assert.Equal(t, ch.Name(), cp.Next().(*ChannelPlayerEntity).GetSetChannelMeta().Name)
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetGetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Id(), cp.Next().(*ChannelPlayerEntity).GetCloseChannel().GetChannelId())
+	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
+	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
+	assert.Equal(t, ch.Id(), cp.Next().Cast().CloseChannel().GetChannelId())
 	assert.Nil(t, cp.Next())
-	assert.True(t, closed)
-	assert.True(t, o.Close().Await().IsSuccess())
+	assert.True(t, vfc.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, o.Close().Await().AwaitTimeout(Timeout).IsSuccess())
 }
 
 func TestOmegaClose(t *testing.T) {
@@ -123,7 +125,6 @@ func TestOmegaClose(t *testing.T) {
 
 	go func() {
 		assert.False(t, o.IsClosed())
-		assert.False(t, o.IsDisconnected())
 		<-time.After(1 * time.Second)
 		o.Close().Await()
 		assert.True(t, o.IsClosed())
@@ -131,7 +132,6 @@ func TestOmegaClose(t *testing.T) {
 
 	bwg.Wait()
 	assert.True(t, o.IsClosed())
-	assert.True(t, o.IsDisconnected())
 }
 
 func TestOmegaWriteOnClosed(t *testing.T) {
@@ -139,9 +139,9 @@ func TestOmegaWriteOnClosed(t *testing.T) {
 	chResp := o.CreateChannel(apirequest.CreateChannel{})
 	chInfo := chResp.Info()
 	ch := chInfo.Join("")
-	assert.True(t, ch.SendMessage("!!!", nil))
+	assert.True(t, ch.SendMessage("!!!", nil).AwaitTimeout(Timeout).IsSuccess())
 	o.Close().Await()
-	assert.False(t, ch.SendMessage("!!!", nil))
+	assert.False(t, ch.SendMessage("!!!", nil).AwaitTimeout(Timeout).IsSuccess())
 }
 
 func TestOmega_MultiVoteChannel(t *testing.T) {
@@ -227,7 +227,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil) {
+				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil).AwaitTimeout(Timeout).IsSuccess() {
 					assert.Fail(t, "send fail")
 				}
 
@@ -243,7 +243,6 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 			wrd.Wait()
 			wcd.Done()
 			wcd.Wait()
-			assert.False(t, og.IsDisconnected())
 			og.Close().Await()
 			bwg.Done()
 		}(i)
@@ -264,7 +263,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	println(tCount)
 	println(nCount)
 	<-time.After(time.Second)
-	vtc := ovt.GetCount()
+	vtc := ovt.GetCount().TransitFrame()
 	assert.Equal(t, 1, int(vtc.VoteOptions[0].Count+vtc.VoteOptions[1].Count))
 	och.Close()
 	ovt.Close()

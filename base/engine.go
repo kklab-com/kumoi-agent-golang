@@ -57,17 +57,12 @@ func (h *_EngineHandlerTask) WSConnected(ch channel.Channel, req *http2.Request,
 }
 
 func (h *_EngineHandlerTask) WSDisconnected(ch channel.Channel, req *http2.Request, resp *http2.Response, params map[string]interface{}) {
-	if h.session.onClosedHandler != nil {
-		h.session.onClosedHandler()
-	}
-
+	h.session.invokeOnClosedHandler()
 	routine.sessionPool.Delete(h.session)
 }
 
 func (h *_EngineHandlerTask) WSErrorCaught(ctx channel.HandlerContext, req *http2.Request, resp *http2.Response, msg websocket.Message, err error) {
-	if h.session.onErrorHandler != nil {
-		h.session.onErrorHandler(err)
-	}
+	h.session.invokeOnErrorHandler(err)
 }
 
 type Engine struct {

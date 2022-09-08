@@ -14,4 +14,5 @@ func (c *ChannelCount) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.ParticipatorCount = tf.GetChannelCount().GetParticipatorCount()
 	c.Count = tf.GetChannelCount().GetCount()
 	c.channelTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

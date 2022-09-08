@@ -18,4 +18,5 @@ func (c *VoteMessage) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.Subject = tf.GetVoteMessage().GetSubject()
 	c.RoleIndicator = tf.GetVoteMessage().GetRoleIndicator()
 	c.voteTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

@@ -8,4 +8,5 @@ type CloseChannel struct {
 
 func (c *CloseChannel) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.channelTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

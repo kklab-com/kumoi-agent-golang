@@ -35,13 +35,13 @@ func TestOmegaVote(t *testing.T) {
 	})
 
 	assert.NotNil(t, vt)
-	assert.True(t, vt.SendMessage("SendMessage"))
-	assert.False(t, vt.SendOwnerMessage("SendOwnerMessage"))
-	assert.False(t, vt.Status(omega.Vote_StatusDeny))
+	assert.True(t, vt.SendMessage("SendMessage").AwaitTimeout(Timeout).IsSuccess())
+	assert.False(t, vt.SendOwnerMessage("SendOwnerMessage").AwaitTimeout(Timeout).IsSuccess())
+	assert.False(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, vt.Select(vt.Info().VoteOptions()[1].Id))
-	assert.False(t, vtInfo.Close("").IsSuccess())
+	assert.False(t, vtInfo.Close("").AwaitTimeout(Timeout).IsSuccess())
 	assert.Nil(t, vtInfo.Join(""))
-	assert.True(t, vt.Leave())
+	assert.True(t, vt.Leave().AwaitTimeout(Timeout).IsSuccess())
 
 	vt = vtf.Join()
 	vt.OnClose(func() {
@@ -53,14 +53,14 @@ func TestOmegaVote(t *testing.T) {
 	})
 
 	assert.NotNil(t, vt)
-	assert.True(t, vt.SendOwnerMessage("SendOwnerMessage"))
-	assert.True(t, vt.SetName("new_vote_name"))
+	assert.True(t, vt.SendOwnerMessage("SendOwnerMessage").AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.SetName("new_vote_name").AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, vt.Info().VoteOptions()[0].Select())
-	assert.True(t, vt.Status(omega.Vote_StatusDeny))
+	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
 	assert.False(t, vt.Select(vt.Info().VoteOptions()[1].Id))
-	assert.Equal(t, int32(1), vt.GetCount().VoteOptions[0].Count)
-	assert.True(t, vt.Close())
-	assert.True(t, o.Close().Await().IsSuccess())
+	assert.Equal(t, int32(1), vt.GetCount().TransitFrame().VoteOptions[0].Count)
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, o.Close().AwaitTimeout(Timeout).IsSuccess())
 }
 
 func TestOmegaVoteWatch(t *testing.T) {
@@ -83,9 +83,9 @@ func TestOmegaVoteWatch(t *testing.T) {
 	})
 
 	assert.NotNil(t, vt)
-	assert.True(t, vt.SendMessage("SendMessage"))
+	assert.True(t, vt.SendMessage("SendMessage").AwaitTimeout(Timeout).IsSuccess())
 	time.Sleep(time.Second)
 	assert.Equal(t, 1, vmCount)
-	assert.True(t, vt.Close())
-	assert.True(t, o.Close().Await().IsSuccess())
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, o.Close().Await().AwaitTimeout(Timeout).IsSuccess())
 }

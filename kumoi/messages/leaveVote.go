@@ -10,4 +10,5 @@ type LeaveVote struct {
 func (c *LeaveVote) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.SessionId = tf.GetLeaveVote().GetSessionId()
 	c.voteTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }

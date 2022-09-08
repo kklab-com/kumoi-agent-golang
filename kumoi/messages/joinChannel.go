@@ -27,4 +27,5 @@ func (c *JoinChannel) ParseTransitFrame(tf *omega.TransitFrame) {
 	c.RoleIndicator = tf.GetJoinChannel().GetRoleIndicator()
 	c.Skill = tf.GetJoinChannel().GetSkill()
 	c.channelTransitFrame.ParseTransitFrame(tf)
+	c.transitFrame.setCast(c)
 }
