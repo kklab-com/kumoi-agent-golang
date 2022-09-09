@@ -220,13 +220,11 @@ func (c *Channel) init() {
 				}
 
 				if tfd := tf.GetLeaveChannel(); tfd != nil {
-					c.onLeave()
-					c.deInit()
+					c.invokeOnLeaveChannelSuccess()
 				}
 
 				if tfd := tf.GetCloseChannel(); tfd != nil {
-					c.onClose()
-					c.deInit()
+					c.invokeOnCloseChannelSuccess()
 				}
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
