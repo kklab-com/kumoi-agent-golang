@@ -457,14 +457,6 @@ func (s *session) transitFramePreProcess(tf *omega.TransitFrame) {
 func (s *session) completeWhenResponseAndError(tf *omega.TransitFrame) {
 	if tf.GetClass() == omega.TransitFrame_ClassResponse {
 		if v, f := s.transitPool.LoadAndDelete(tf.GetTransitId()); f {
-			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveChannel(); stf != nil {
-				tf.GetLeaveChannel().ChannelId = stf.GetChannelId()
-			}
-
-			if stf := v.(*transitPoolEntity).future.SentTransitFrame().GetLeaveVote(); stf != nil {
-				tf.GetLeaveVote().VoteId = stf.GetVoteId()
-			}
-
 			v.(*transitPoolEntity).future.Completable().Complete(tf)
 		}
 	} else if tf.GetClass() == omega.TransitFrame_ClassError {

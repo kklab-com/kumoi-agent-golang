@@ -117,11 +117,31 @@ func (c *Channel) SetSkill(skill *omega.Skill) SendFuture[*messages.SetChannelMe
 }
 
 func (c *Channel) Leave() SendFuture[*messages.LeaveChannel] {
-	return wrapSendFuture[*messages.LeaveChannel](c.omega.Agent().LeaveChannel(c.Info().channelId))
+	wsf := wrapSendFuture[*messages.LeaveChannel](c.omega.Agent().LeaveChannel(c.Info().channelId))
+	fc := c
+	wsf.Base().Then(func(parent concurrent.Future) interface{} {
+		if parent.IsSuccess() {
+			fc.invokeOnLeaveChannelSuccess()
+		}
+
+		return nil
+	})
+
+	return wsf
 }
 
 func (c *Channel) Close() SendFuture[*messages.CloseChannel] {
-	return wrapSendFuture[*messages.CloseChannel](c.omega.Agent().CloseChannel(c.Info().channelId, c.key))
+	wsf := wrapSendFuture[*messages.CloseChannel](c.omega.Agent().CloseChannel(c.Info().channelId, c.key))
+	fc := c
+	wsf.Base().Then(func(parent concurrent.Future) interface{} {
+		if parent.IsSuccess() {
+			fc.invokeOnCloseChannelSuccess()
+		}
+
+		return nil
+	})
+
+	return wsf
 }
 
 func (c *Channel) SendMessage(msg string, meta *base.Metadata) SendFuture[*messages.ChannelMessage] {
@@ -214,19 +234,19 @@ func (c *Channel) init() {
 					c.info.metadata = tfd.GetData()
 					c.info.createdAt = tfd.GetCreatedAt()
 				}
-
-				if tfd := tf.GetLeaveChannel(); tfd != nil {
-					c.onLeave()
-					c.deInit()
-				}
-
-				if tfd := tf.GetCloseChannel(); tfd != nil {
-					c.onClose()
-					c.deInit()
-				}
 			}
 		}
 	})
+}
+
+func (c *Channel) invokeOnLeaveChannelSuccess() {
+	c.onLeave()
+	c.deInit()
+}
+
+func (c *Channel) invokeOnCloseChannelSuccess() {
+	c.onClose()
+	c.deInit()
 }
 
 func (c *Channel) deInit() {
