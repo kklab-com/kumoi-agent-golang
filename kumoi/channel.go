@@ -17,6 +17,7 @@ type ChannelInfo struct {
 	channelId string
 	name      string
 	metadata  *base.Metadata
+	skill     *omega.Skill
 	createdAt int64
 	omega     *Omega
 }
@@ -31,6 +32,10 @@ func (c *ChannelInfo) Name() string {
 
 func (c *ChannelInfo) Metadata() *base.Metadata {
 	return c.metadata
+}
+
+func (c *ChannelInfo) Skill() *omega.Skill {
+	return c.skill
 }
 
 func (c *ChannelInfo) CreatedAt() int64 {
@@ -54,6 +59,10 @@ func (c *ChannelInfo) Join(key string) *Channel {
 
 			ch.info.name = cv.GetName()
 			ch.info.metadata = cv.GetChannelMetadata()
+			if cv.GetRoleIndicator() == omega.Role_RoleOwner {
+				ch.info.skill = cv.GetSkill()
+			}
+
 			ch.init()
 			return ch
 		}
@@ -188,6 +197,7 @@ func (c *Channel) Watch(f func(msg messages.ChannelFrame)) *Channel {
 }
 
 func (c *Channel) init() {
+	fc := c
 	c.omega.onMessageHandlers.Store(c.Id(), func(tf *omega.TransitFrame) {
 		if tf.GetClass() == omega.TransitFrame_ClassError {
 			return
@@ -204,33 +214,36 @@ func (c *Channel) init() {
 		}
 
 		// has same channelId
-		if tfdEChId := tfdE.Field(0).Elem().FieldByName("ChannelId"); tfdEChId.IsValid() && tfdEChId.String() == c.Id() {
+		if tfdEChId := tfdE.Field(0).Elem().FieldByName("ChannelId"); tfdEChId.IsValid() && tfdEChId.String() == fc.Id() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
-					c.info.name = tfd.GetName()
-					c.info.metadata = tfd.GetData()
-					c.info.createdAt = tfd.GetCreatedAt()
+					fc.info.name = tfd.GetName()
+					fc.info.metadata = tfd.GetData()
+					fc.info.createdAt = tfd.GetCreatedAt()
 				}
 
 				if ctf := getParsedTransitFrameFromBaseTransitFrame(tf).Cast().ChannelFrame(); ctf != nil {
-					c.watch(ctf)
+					fc.watch(ctf)
 				} else {
 					kklogger.WarnJ("kumoi:Channel.init", fmt.Sprintf("%s should not be here", tf.String()))
 				}
 
 				if tfd := tf.GetLeaveChannel(); tfd != nil {
-					c.invokeOnLeaveChannelSuccess()
+					fc.invokeOnLeaveChannelSuccess()
 				}
 
 				if tfd := tf.GetCloseChannel(); tfd != nil {
-					c.invokeOnCloseChannelSuccess()
+					fc.invokeOnCloseChannelSuccess()
 				}
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
-					c.info.name = tfd.GetName()
-					c.info.metadata = tfd.GetData()
-					c.info.createdAt = tfd.GetCreatedAt()
+					fc.info.name = tfd.GetName()
+					fc.info.metadata = tfd.GetData()
+					fc.info.createdAt = tfd.GetCreatedAt()
+					if fc.Role() == omega.Role_RoleOwner {
+						fc.info.skill = tfd.GetSkill()
+					}
 				}
 			}
 		}
