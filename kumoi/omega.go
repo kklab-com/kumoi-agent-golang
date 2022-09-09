@@ -259,7 +259,7 @@ func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) CreateChan
 		omega:  o,
 	}
 
-	cf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	cf.Base().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			ccf.Completable().Complete(f.Get())
 		} else if f.IsFail() {
@@ -315,7 +315,7 @@ func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
 		omega:  o,
 	}
 
-	vf.AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	vf.Base().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			cvf.Completable().Complete(f.Get())
 		} else if f.IsFail() {

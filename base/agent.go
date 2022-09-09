@@ -5,6 +5,7 @@ import (
 	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
+	"github.com/kklab-com/kumoi-agent-golang/base/apiresponse"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
 
@@ -69,8 +70,8 @@ type Agent interface {
 	SetSessionMeta(metadata *Metadata) SendFuture
 	SessionMessage(sessionId string, message string) SendFuture
 	SessionsMessage(sessionIds []string, message string) SendFuture
-	CreateChannel(createChannel apirequest.CreateChannel) concurrent.Future
-	CreateVote(createVote apirequest.CreateVote) concurrent.Future
+	CreateChannel(createChannel apirequest.CreateChannel) CastFuture[*apiresponse.CreateChannel]
+	CreateVote(createVote apirequest.CreateVote) CastFuture[*apiresponse.CreateVote]
 }
 
 type agent struct {
@@ -359,11 +360,11 @@ func (a *agent) SessionsMessage(sessionIds []string, message string) SendFuture 
 	return a.session.SendRequest(&omega.TransitFrame_SessionsMessage{SessionsMessage: &omega.SessionsMessage{ToSessions: sessionIds, Message: message}})
 }
 
-func (a *agent) CreateChannel(createChannel apirequest.CreateChannel) concurrent.Future {
+func (a *agent) CreateChannel(createChannel apirequest.CreateChannel) CastFuture[*apiresponse.CreateChannel] {
 	return a.Session().GetEngine().createChannel(createChannel)
 }
 
-func (a *agent) CreateVote(createVote apirequest.CreateVote) concurrent.Future {
+func (a *agent) CreateVote(createVote apirequest.CreateVote) CastFuture[*apiresponse.CreateVote] {
 	return a.Session().GetEngine().createVote(createVote)
 }
 

@@ -153,9 +153,9 @@ func (e *Engine) connectTimeoutWatch(f concurrent.Future) {
 /*
 return future object will be *apiresponse.CreateChannel
 */
-func (e *Engine) createChannel(createChannel apirequest.CreateChannel) concurrent.Future {
+func (e *Engine) createChannel(createChannel apirequest.CreateChannel) CastFuture[*apiresponse.CreateChannel] {
 	if !e.checkResource() {
-		return concurrent.NewFailedFuture(ErrCantGetServiceResource)
+		return wrapCastFuture[*apiresponse.CreateChannel](concurrent.NewFailedFuture(ErrCantGetServiceResource))
 	}
 
 	if createChannel.IdleTimeoutSecond == 0 {
@@ -187,15 +187,15 @@ func (e *Engine) createChannel(createChannel apirequest.CreateChannel) concurren
 		}
 	}(future)
 
-	return future
+	return wrapCastFuture[*apiresponse.CreateChannel](future)
 }
 
 /*
 return future object will be *apiresponse.CreateChannel
 */
-func (e *Engine) createVote(createVote apirequest.CreateVote) concurrent.Future {
+func (e *Engine) createVote(createVote apirequest.CreateVote) CastFuture[*apiresponse.CreateVote] {
 	if !e.checkResource() {
-		return concurrent.NewFailedFuture(ErrCantGetServiceResource)
+		return wrapCastFuture[*apiresponse.CreateVote](concurrent.NewFailedFuture(ErrCantGetServiceResource))
 	}
 
 	if createVote.IdleTimeoutSecond == 0 {
@@ -227,5 +227,5 @@ func (e *Engine) createVote(createVote apirequest.CreateVote) concurrent.Future 
 		}
 	}(future)
 
-	return future
+	return wrapCastFuture[*apiresponse.CreateVote](future)
 }

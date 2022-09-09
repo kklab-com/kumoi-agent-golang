@@ -5,7 +5,6 @@ import (
 
 	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
-	"github.com/kklab-com/kumoi-agent-golang/base/apiresponse"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,7 +38,7 @@ func TestAgent(t *testing.T) {
 	assert.NotEmpty(t, ag.Ping().Get())
 
 	if f := ag.CreateChannel(apirequest.CreateChannel{Name: "kumoi-agent-golang_test_ch", IdleTimeoutSecond: 60}).AwaitTimeout(Timeout); f.Get() != nil {
-		resp := f.Get().(*apiresponse.CreateChannel)
+		resp := f.Get()
 		assert.Equal(t, "kumoi-agent-golang_test_ch", resp.Name)
 		assert.NotEmpty(t, resp.AppId)
 		assert.NotEmpty(t, resp.ChannelId)
@@ -88,7 +87,7 @@ func TestAgent(t *testing.T) {
 	}
 
 	if f := ag.CreateVote(apirequest.CreateVote{Name: "kumoi-agent-golang_test_vt", VoteOptions: []apirequest.CreateVoteOption{{Name: "vto1"}, {Name: "vto2"}}, IdleTimeoutSecond: 60}).AwaitTimeout(Timeout); f.Get() != nil {
-		resp := f.Get().(*apiresponse.CreateVote)
+		resp := f.Get()
 		assert.Equal(t, "kumoi-agent-golang_test_vt", resp.Name)
 		assert.NotEmpty(t, resp.AppId)
 		assert.NotEmpty(t, resp.VoteId)
