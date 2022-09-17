@@ -7,6 +7,7 @@ import (
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
+	omega "github.com/kklab-com/kumoi-protobuf-golang"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -337,6 +338,174 @@ func TestMessage_SessionMessage(t *testing.T) {
 	})
 
 	assert.True(t, oFirst.GetRemoteSession(oSecond.Session().GetId()).SendMessage(TestMessage).AwaitTimeout(Timeout).TransitFrame().GetTransitId() > 0)
+
+	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oFirst.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oSecond.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestMessage_VoteCount(t *testing.T) {
+	oFirst := NewOmegaBuilder(conf).Connect().Omega()
+	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	okFuture := concurrent.NewFuture()
+
+	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
+		Name:        t.Name(),
+		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
+	})
+
+	resp := reqFuture.Response()
+	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Key)
+	info := reqFuture.Info()
+	assert.NotEmpty(t, info)
+	assert.Equal(t, t.Name(), info.Name())
+
+	vt := reqFuture.Join()
+	assert.NotEmpty(t, vt)
+
+	assert.True(t, vt.SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Info().VoteOptions()[0].Name == "vto1")
+	assert.True(t, vt.Info().VoteOptions()[1].Name == "vto2")
+	assert.True(t, vt.Info().VoteOptions()[0].Id != "")
+	assert.True(t, vt.Info().VoteOptions()[1].Id != "")
+	vt2 := oSecond.Vote(resp.VoteId).Join("")
+	assert.NotEmpty(t, vt2)
+	assert.True(t, vt2.Info().VoteOptions()[1].Select())
+	assert.True(t, vt.Count().AwaitTimeout(Timeout).TransitFrame().GetVoteOptions()[0].GetCount() == 0)
+	assert.True(t, vt.Count().AwaitTimeout(Timeout).TransitFrame().GetVoteOptions()[1].GetCount() > 0)
+
+	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData().AsMap()["MK"] == "MV")
+	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetName() == t.Name())
+	okFuture.Completable().Complete(nil)
+
+	assert.True(t, vt2.Leave().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
+
+	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oFirst.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oSecond.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestMessage_VoteMessage(t *testing.T) {
+	oFirst := NewOmegaBuilder(conf).Connect().Omega()
+	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	okFuture := concurrent.NewFuture()
+
+	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
+		Name:        t.Name(),
+		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
+	})
+
+	resp := reqFuture.Response()
+	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Key)
+	info := reqFuture.Info()
+	assert.NotEmpty(t, info)
+	assert.Equal(t, t.Name(), info.Name())
+
+	vt := reqFuture.Join()
+	assert.NotEmpty(t, vt)
+
+	vt2 := oSecond.Vote(resp.VoteId).Join("")
+	vt2.Watch(func(msg messages.TransitFrame) {
+		switch v := msg.(type) {
+		case *messages.VoteMessage:
+			if v.GetMessage() == TestMessage {
+				okFuture.Completable().Complete(nil)
+			}
+		}
+	})
+
+	assert.True(t, vt.SendMessage(TestMessage).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt2.Leave().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
+
+	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oFirst.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oSecond.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestMessage_VoteOwnerMessage(t *testing.T) {
+	oFirst := NewOmegaBuilder(conf).Connect().Omega()
+	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	okFuture := concurrent.NewFuture()
+
+	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
+		Name:        t.Name(),
+		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
+	})
+
+	resp := reqFuture.Response()
+	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Key)
+	info := reqFuture.Info()
+	assert.NotEmpty(t, info)
+	assert.Equal(t, t.Name(), info.Name())
+
+	vt := reqFuture.Join()
+	assert.NotEmpty(t, vt)
+
+	vt2 := oSecond.Vote(resp.VoteId).Join("")
+	vt2.Watch(func(msg messages.TransitFrame) {
+		switch v := msg.(type) {
+		case *messages.VoteOwnerMessage:
+			if v.GetMessage() == TestMessage {
+				okFuture.Completable().Complete(nil)
+			}
+		}
+	})
+
+	assert.True(t, vt.SendOwnerMessage(TestMessage).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt2.SendOwnerMessage(TestMessage).AwaitTimeout(Timeout).IsFail())
+	assert.True(t, vt2.Leave().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
+
+	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oFirst.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oSecond.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestMessage_VoteStatus(t *testing.T) {
+	oFirst := NewOmegaBuilder(conf).Connect().Omega()
+	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	okFuture := concurrent.NewFuture()
+
+	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
+		Name:        t.Name(),
+		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
+	})
+
+	resp := reqFuture.Response()
+	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Key)
+	info := reqFuture.Info()
+	assert.NotEmpty(t, info)
+	assert.Equal(t, t.Name(), info.Name())
+
+	vt := reqFuture.Join()
+	assert.NotEmpty(t, vt)
+
+	vt2 := oSecond.Vote(resp.VoteId).Join("")
+	vt2.Watch(func(msg messages.TransitFrame) {
+		switch v := msg.(type) {
+		case *messages.VoteStatus:
+			if v.GetStatus() == omega.Vote_StatusDeny {
+				okFuture.Completable().Complete(nil)
+			}
+		}
+	})
+
+	assert.True(t, vt2.Select(vt2.Info().VoteOptions()[0].Id))
+	assert.True(t, !vt2.Select(""))
+	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt2.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsFail())
+	assert.True(t, !vt2.Select(vt2.Info().VoteOptions()[0].Id))
+
+	assert.True(t, vt2.Leave().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
 
 	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, oFirst.Close().AwaitTimeout(Timeout).IsSuccess())
