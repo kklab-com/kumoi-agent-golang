@@ -344,6 +344,22 @@ func TestMessage_SessionMessage(t *testing.T) {
 	assert.True(t, oSecond.Close().AwaitTimeout(Timeout).IsSuccess())
 }
 
+func TestMessage_SessionMessageSelf(t *testing.T) {
+	oFirst := NewOmegaBuilder(conf).Connect().Omega()
+	okFuture := concurrent.NewFuture()
+
+	oFirst.Session().OnMessage(func(msg *messages.SessionMessage) {
+		if msg.GetMessage() == TestMessage {
+			okFuture.Completable().Complete(nil)
+		}
+	})
+
+	assert.True(t, oFirst.Session().SendMessage(TestMessage).AwaitTimeout(Timeout).TransitFrame().GetTransitId() > 0)
+
+	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oFirst.Close().AwaitTimeout(Timeout).IsSuccess())
+}
+
 func TestMessage_VoteCount(t *testing.T) {
 	oFirst := NewOmegaBuilder(conf).Connect().Omega()
 	oSecond := NewOmegaBuilder(conf).Connect().Omega()
