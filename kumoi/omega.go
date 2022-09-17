@@ -33,7 +33,7 @@ func (f *DefaultOmegaFuture) Omega() *Omega {
 type Omega struct {
 	agent                   base.Agent
 	onMessageHandlers       sync.Map
-	OnMessageHandler        func(tf *omega.TransitFrame)
+	OnMessageHandler        func(tf messages.TransitFrame)
 	OnSessionMessageHandler func(tf *messages.SessionMessage)
 	OnBroadcastHandler      func(tf *messages.Broadcast)
 	OnClosedHandler         func()
@@ -51,7 +51,7 @@ func (o *Omega) initWithAgent(agent base.Agent) *Omega {
 
 	o.agent = agent
 	if o.OnMessageHandler == nil {
-		o.OnMessageHandler = func(tf *omega.TransitFrame) {
+		o.OnMessageHandler = func(tf messages.TransitFrame) {
 		}
 	}
 
@@ -116,7 +116,7 @@ func (o *Omega) ServerTime() SendFuture[*messages.ServerTime] {
 	return wrapSendFuture[*messages.ServerTime](o.agent.ServerTime())
 }
 
-func (o *Omega) GetChannel(channelId string) *ChannelInfo {
+func (o *Omega) Channel(channelId string) *ChannelInfo {
 	if v := o.agent.GetChannelMetadata(channelId).Get(); v != nil {
 		meta := value.Cast[*omega.TransitFrame](v).GetGetChannelMeta()
 		channelInfo := &ChannelInfo{
@@ -133,7 +133,7 @@ func (o *Omega) GetChannel(channelId string) *ChannelInfo {
 	return nil
 }
 
-func (o *Omega) GetVote(voteId string) *VoteInfo {
+func (o *Omega) Vote(voteId string) *VoteInfo {
 	if v := o.agent.GetVoteMetadata(voteId).Get(); v != nil {
 		meta := value.Cast[*omega.TransitFrame](v).GetGetVoteMeta()
 		voteInfo := &VoteInfo{
@@ -193,7 +193,9 @@ func (o *Omega) invokeOnMessage(tf *omega.TransitFrame) {
 		return true
 	})
 
-	o.OnMessageHandler(tf)
+	if ctf := getParsedTransitFrameFromBaseTransitFrame(tf); ctf != nil {
+		o.OnMessageHandler(ctf)
+	}
 }
 
 func (o *Omega) invokeOnSessionMessage(tf *omega.TransitFrame) {
@@ -238,7 +240,7 @@ func (f *DefaultCreateChannelFuture) Response() *apiresponse.CreateChannel {
 
 func (f *DefaultCreateChannelFuture) Info() *ChannelInfo {
 	if resp := f.Response(); resp != nil {
-		return f.omega.GetChannel(resp.ChannelId)
+		return f.omega.Channel(resp.ChannelId)
 	}
 
 	return nil
@@ -294,7 +296,7 @@ func (f *DefaultCreateVoteFuture) Response() *apiresponse.CreateVote {
 
 func (f *DefaultCreateVoteFuture) Info() *VoteInfo {
 	if resp := f.Response(); resp != nil {
-		return f.omega.GetVote(resp.VoteId)
+		return f.omega.Vote(resp.VoteId)
 	}
 
 	return nil
@@ -329,34 +331,39 @@ func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
 }
 
 type OmegaBuilder struct {
-	engine *base.Engine
+	conf *base.Config
 }
 
-func NewOmegaBuilder(engine *base.Engine) *OmegaBuilder {
-	if engine == nil {
+func NewOmegaBuilder(conf *base.Config) *OmegaBuilder {
+	if conf == nil {
 		return nil
 	}
 
-	return &OmegaBuilder{engine: engine}
+	return &OmegaBuilder{conf: conf}
 }
 
 func (b *OmegaBuilder) Connect() OmegaFuture {
-	if b.engine == nil || b.engine.Config == nil {
+	if b.conf == nil {
 		return &DefaultOmegaFuture{Future: concurrent.NewFailedFuture(base.ErrConfigIsEmpty)}
 	}
 
 	of := &DefaultOmegaFuture{Future: concurrent.NewFuture()}
-	base.NewAgentBuilder(b.engine).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	base.NewAgentBuilder(b.conf).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			of.Completable().Complete(NewOmega(f.Get().(base.Agent)))
 		} else if f.IsCancelled() {
 			of.Completable().Cancel()
 		} else if f.IsFail() {
+			println(f.Error().Error())
 			of.Completable().Fail(f.Error())
 		}
 	}))
 
 	return of
+}
+
+type Player interface {
+	Next() messages.TransitFrame
 }
 
 func getParsedTransitFrameFromBaseTransitFrame(btf *omega.TransitFrame) messages.TransitFrame {

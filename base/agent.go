@@ -369,24 +369,24 @@ func (a *agent) CreateVote(createVote apirequest.CreateVote) CastFuture[*apiresp
 }
 
 type AgentBuilder struct {
-	engine *Engine
+	conf *Config
 }
 
-func NewAgentBuilder(engine *Engine) *AgentBuilder {
-	if engine == nil {
+func NewAgentBuilder(conf *Config) *AgentBuilder {
+	if conf == nil {
 		return nil
 	}
 
-	return &AgentBuilder{engine: engine}
+	return &AgentBuilder{conf: conf}
 }
 
 func (b *AgentBuilder) Connect() AgentFuture {
-	if b.engine == nil || b.engine.Config == nil {
+	if b.conf == nil {
 		return &DefaultAgentFuture{Future: concurrent.NewFailedFuture(ErrConfigIsEmpty)}
 	}
 
 	af := &DefaultAgentFuture{Future: concurrent.NewFuture()}
-	b.engine.connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	NewEngine(b.conf).connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			af.Completable().Complete(NewAgent(f.Get().(Session)))
 		} else if f.IsCancelled() {

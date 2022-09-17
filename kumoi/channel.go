@@ -85,6 +85,10 @@ type Channel struct {
 	watch            func(msg messages.ChannelFrame)
 }
 
+func (c *Channel) watchId() string {
+	return fmt.Sprintf("ch-watch-%s", c.info.channelId)
+}
+
 func (c *Channel) Id() string {
 	return c.Info().channelId
 }
@@ -161,7 +165,7 @@ func (c *Channel) SendOwnerMessage(msg string, meta *base.Metadata) SendFuture[*
 	return wrapSendFuture[*messages.ChannelOwnerMessage](c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, meta))
 }
 
-func (c *Channel) GetCount() SendFuture[*messages.ChannelCount] {
+func (c *Channel) Count() SendFuture[*messages.ChannelCount] {
 	return wrapSendFuture[*messages.ChannelCount](c.omega.Agent().ChannelCount(c.Info().channelId))
 }
 
@@ -198,7 +202,7 @@ func (c *Channel) Watch(f func(msg messages.ChannelFrame)) *Channel {
 
 func (c *Channel) init() {
 	fc := c
-	c.omega.onMessageHandlers.Store(c.Id(), func(tf *omega.TransitFrame) {
+	c.omega.onMessageHandlers.Store(c.watchId(), func(tf *omega.TransitFrame) {
 		if tf.GetClass() == omega.TransitFrame_ClassError {
 			return
 		}
@@ -261,11 +265,7 @@ func (c *Channel) invokeOnCloseChannelSuccess() {
 }
 
 func (c *Channel) deInit() {
-	c.omega.onMessageHandlers.Delete(c.Id())
-}
-
-type Player interface {
-	Next() messages.TransitFrame
+	c.omega.onMessageHandlers.Delete(c.watchId())
 }
 
 type channelPlayer struct {
@@ -306,12 +306,13 @@ func (p *channelPlayer) Next() (t messages.TransitFrame) {
 func (p *channelPlayer) load(f base.SendFuture) {
 	bwg := concurrent.WaitGroup{}
 	transitId := f.SentTransitFrame().GetTransitId()
+	watchId := fmt.Sprintf("ch-load-%d", transitId)
 	var refId []byte
 	totalCount := int32(0)
 	loadCount := int32(0)
 	rcf := concurrent.NewFuture()
 	player := p
-	player.omega.onMessageHandlers.Store(fmt.Sprintf("load-%d", transitId), func(tf *omega.TransitFrame) {
+	player.omega.onMessageHandlers.Store(watchId, func(tf *omega.TransitFrame) {
 		if tf.GetTransitId() == transitId && tf.GetClass() == omega.TransitFrame_ClassResponse {
 			refId = tf.GetMessageId()
 			switch rcm := tf.GetData().(type) {
@@ -324,7 +325,7 @@ func (p *channelPlayer) load(f base.SendFuture) {
 			if totalCount > 0 {
 				bwg.Add(int(totalCount))
 			} else {
-				player.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
+				player.omega.onMessageHandlers.Delete(watchId)
 			}
 
 			rcf.Completable().Complete(nil)
@@ -335,7 +336,7 @@ func (p *channelPlayer) load(f base.SendFuture) {
 			loadCount++
 			bwg.Done()
 			if loadCount == totalCount {
-				player.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
+				player.omega.onMessageHandlers.Delete(watchId)
 			}
 		}
 	})
@@ -351,5 +352,5 @@ func (p *channelPlayer) load(f base.SendFuture) {
 		bwg.Wait()
 	}
 
-	p.omega.onMessageHandlers.Delete(fmt.Sprintf("load-%d", transitId))
+	p.omega.onMessageHandlers.Delete(watchId)
 }

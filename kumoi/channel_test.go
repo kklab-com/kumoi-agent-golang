@@ -15,7 +15,7 @@ import (
 )
 
 func TestChannel_ChannelJoin(t *testing.T) {
-	omg := NewOmegaBuilder(engine).Connect().Omega()
+	omg := NewOmegaBuilder(conf).Connect().Omega()
 	chf := omg.CreateChannel(apirequest.CreateChannel{
 		Name:              t.Name(),
 		IdleTimeoutSecond: 100,
@@ -71,7 +71,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	<-time.After(2 * time.Second)
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, int32(1), ch.GetCount().TransitFrame().Count)
+	assert.Equal(t, int32(1), ch.Count().TransitFrame().Count)
 	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
 	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())

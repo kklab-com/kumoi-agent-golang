@@ -85,6 +85,10 @@ type Vote struct {
 	watch            func(msg messages.VoteFrame)
 }
 
+func (v *Vote) watchId() string {
+	return fmt.Sprintf("vt-watch-%s", v.info.VoteId())
+}
+
 func (v *Vote) Id() string {
 	return v.Info().voteId
 }
@@ -130,7 +134,7 @@ func (v *Vote) SendOwnerMessage(msg string) SendFuture[*messages.VoteOwnerMessag
 	return wrapSendFuture[*messages.VoteOwnerMessage](v.omega.Agent().VoteOwnerMessage(v.Info().voteId, msg))
 }
 
-func (v *Vote) GetCount() SendFuture[*messages.VoteCount] {
+func (v *Vote) Count() SendFuture[*messages.VoteCount] {
 	return wrapSendFuture[*messages.VoteCount](v.omega.Agent().VoteCount(v.Info().voteId))
 }
 
@@ -163,7 +167,7 @@ func (v *Vote) Watch(f func(msg messages.VoteFrame)) *Vote {
 }
 
 func (v *Vote) init() {
-	v.omega.onMessageHandlers.Store(v.Id(), func(tf *omega.TransitFrame) {
+	v.omega.onMessageHandlers.Store(v.watchId(), func(tf *omega.TransitFrame) {
 		if tf.GetClass() == omega.TransitFrame_ClassError {
 			return
 		}
@@ -248,7 +252,7 @@ func (v *Vote) init() {
 }
 
 func (v *Vote) deInit() {
-	v.omega.onMessageHandlers.Delete(v.Id())
+	v.omega.onMessageHandlers.Delete(v.watchId())
 }
 
 type VoteOption struct {

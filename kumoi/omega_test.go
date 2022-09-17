@@ -21,7 +21,7 @@ import (
 var appId = ""
 var token = ""
 var domain = ""
-var engine *base.Engine
+var conf *base.Config
 
 const Timeout = time.Second
 
@@ -29,14 +29,13 @@ func TestMain(m *testing.M) {
 	appId = os.Getenv("TEST_APP_ID")
 	token = os.Getenv("TEST_TOKEN")
 	domain = os.Getenv("TEST_DOMAIN")
-	conf := base.NewConfig(appId, token)
+	conf = base.NewConfig(appId, token)
 	conf.Domain = domain
-	engine = base.NewEngine(conf)
 	m.Run()
 }
 
 func TestOmega(t *testing.T) {
-	o := NewOmegaBuilder(engine).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Omega()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.ServerTime())
@@ -86,7 +85,7 @@ func TestOmega(t *testing.T) {
 	<-time.After(2 * time.Second)
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, int32(1), ch.GetCount().TransitFrame().Count)
+	assert.Equal(t, int32(1), ch.Count().TransitFrame().Count)
 	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
 	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
@@ -108,7 +107,7 @@ func TestOmega(t *testing.T) {
 }
 
 func TestOmegaClose(t *testing.T) {
-	o := NewOmegaBuilder(engine).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Omega()
 	bwg := concurrent.WaitGroup{}
 	go func() {
 		<-time.After(3 * time.Second)
@@ -135,7 +134,7 @@ func TestOmegaClose(t *testing.T) {
 }
 
 func TestOmegaWriteOnClosed(t *testing.T) {
-	o := NewOmegaBuilder(engine).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Omega()
 	chResp := o.CreateChannel(apirequest.CreateChannel{})
 	chInfo := chResp.Info()
 	ch := chInfo.Join("")
@@ -148,7 +147,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	tCount := int32(0)
 	nCount := int32(0)
 	bwg := concurrent.WaitGroup{}
-	ng := NewOmegaBuilder(engine).Connect().Omega()
+	ng := NewOmegaBuilder(conf).Connect().Omega()
 	och := ng.CreateChannel(apirequest.CreateChannel{Name: "TestOmega_MultiVoteChannel_C"}).Join()
 	if och == nil {
 		assert.Fail(t, "create ch nil")
@@ -165,6 +164,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 		return
 	}
 
+	println(ovt.Id())
 	thread := 100
 	times := 20
 	bwg.Add(thread)
@@ -174,7 +174,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	wcd.Add(thread)
 
 	go func() {
-		<-time.After(time.Second * 3)
+		<-time.After(time.Second * 10)
 		if c := wjd.Remain(); c > 0 {
 			assert.Fail(t, fmt.Sprintf("wjd %d", c))
 		}
@@ -184,14 +184,14 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 
 	for i := 0; i < thread; i++ {
 		go func(ii int) {
-			og := NewOmegaBuilder(engine).Connect().Omega()
-			ch := og.GetChannel(och.Id()).Join("")
+			og := NewOmegaBuilder(conf).Connect().Omega()
+			ch := og.Channel(och.Id()).Join("")
 			if ch == nil {
 				assert.Fail(t, "get ch nil")
 				return
 			}
 
-			vt := og.GetVote(ovt.Id()).Join("")
+			vt := og.Vote(ovt.Id()).Join("")
 			if vt == nil {
 				assert.Fail(t, "get vt nil")
 				return
@@ -227,7 +227,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil).AwaitTimeout(Timeout).IsSuccess() {
+				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil).AwaitTimeout(5 * Timeout).IsSuccess() {
 					assert.Fail(t, "send fail")
 				}
 
@@ -263,9 +263,9 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	println(tCount)
 	println(nCount)
 	<-time.After(time.Second)
-	vtc := ovt.GetCount().TransitFrame()
+	vtc := ovt.Count().TransitFrame()
 	assert.Equal(t, 1, int(vtc.VoteOptions[0].Count+vtc.VoteOptions[1].Count))
 	och.Close()
-	ovt.Close()
+	assert.True(t, ovt.Close().AwaitTimeout(Timeout).IsSuccess())
 	ng.Close().Await()
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestOmegaVote(t *testing.T) {
-	o := NewOmegaBuilder(engine).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Omega()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.ServerTime())
@@ -58,13 +58,13 @@ func TestOmegaVote(t *testing.T) {
 	assert.True(t, vt.Info().VoteOptions()[0].Select())
 	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
 	assert.False(t, vt.Select(vt.Info().VoteOptions()[1].Id))
-	assert.Equal(t, int32(1), vt.GetCount().TransitFrame().VoteOptions[0].Count)
+	assert.Equal(t, int32(1), vt.Count().TransitFrame().VoteOptions[0].Count)
 	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, o.Close().AwaitTimeout(Timeout).IsSuccess())
 }
 
 func TestOmegaVoteWatch(t *testing.T) {
-	o := NewOmegaBuilder(engine).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Omega()
 	assert.NotEmpty(t, o)
 	vtf := o.CreateVote(apirequest.CreateVote{
 		Name:              "!!!",

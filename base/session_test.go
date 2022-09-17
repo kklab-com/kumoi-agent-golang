@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 	conf := NewConfig(appId, token)
 	conf.Domain = domain
 	engine = NewEngine(conf)
-	agentBuilder = NewAgentBuilder(engine)
+	agentBuilder = NewAgentBuilder(conf)
 	m.Run()
 }
 
