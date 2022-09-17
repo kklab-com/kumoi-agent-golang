@@ -24,6 +24,7 @@ type SendFuture[T messages.TransitFrame] interface {
 	IsFail() bool
 	Error() error
 	TransitFrame() (t T)
+	AddListener(listener concurrent.FutureListener) SendFuture[T]
 }
 
 func wrapSendFuture[T messages.TransitFrame](sf base.SendFuture) (t SendFuture[T]) {
@@ -72,6 +73,11 @@ func (f *DefaultSendFuture[T]) TransitFrame() (t T) {
 	var an any = getParsedTransitFrameFromBaseTransitFrame(f.bf.TransitFrame())
 	t = value.Cast[T](an)
 	return
+}
+
+func (f *DefaultSendFuture[T]) AddListener(listener concurrent.FutureListener) SendFuture[T] {
+	f.Base().AddListener(listener)
+	return f
 }
 
 type OmegaFuture interface {
