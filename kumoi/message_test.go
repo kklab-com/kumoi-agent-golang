@@ -75,7 +75,6 @@ func TestMessage_ChannelMessage(t *testing.T) {
 	ch2.Watch(func(msg messages.TransitFrame) {
 		switch v := msg.(type) {
 		case *messages.ChannelMessage:
-			println(v.ProtoMessage().String())
 			if v.GetMessage() == TestMessage &&
 				v.GetFromSession() == oFirst.Session().GetId() &&
 				v.GetMetadata().AsMap()["MK"] == "MV" {
