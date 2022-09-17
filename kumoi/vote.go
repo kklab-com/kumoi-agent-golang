@@ -51,7 +51,7 @@ func (v *VoteInfo) Join(key string) *Vote {
 				info:    &nv,
 				onLeave: func() {},
 				onClose: func() {},
-				watch:   func(msg messages.VoteFrame) {},
+				watch:   func(msg messages.TransitFrame) {},
 			}
 
 			vt.info.name = jv.GetName()
@@ -82,7 +82,7 @@ type Vote struct {
 	omega            *Omega
 	info             *VoteInfo
 	onLeave, onClose func()
-	watch            func(msg messages.VoteFrame)
+	watch            func(msg messages.TransitFrame)
 }
 
 func (v *Vote) watchId() string {
@@ -161,7 +161,7 @@ func (v *Vote) OnClose(f func()) *Vote {
 	return v
 }
 
-func (v *Vote) Watch(f func(msg messages.VoteFrame)) *Vote {
+func (v *Vote) Watch(f func(msg messages.TransitFrame)) *Vote {
 	v.watch = f
 	return v
 }
@@ -215,7 +215,7 @@ func (v *Vote) init() {
 					v.info.voteOptions = vtos
 				}
 
-				if vtf := getParsedTransitFrameFromBaseTransitFrame(tf).Cast().VoteFrame(); vtf != nil {
+				if vtf := getParsedTransitFrameFromBaseTransitFrame(tf); vtf != nil {
 					v.watch(vtf)
 				} else {
 					kklogger.WarnJ("kumoi:Vote.init", fmt.Sprintf("%s should not be here", tf.String()))

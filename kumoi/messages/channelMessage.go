@@ -6,24 +6,41 @@ import (
 )
 
 type ChannelMessage struct {
-	channelTransitFrame
-	FromSession   string
-	Message       string
-	Subject       string
-	SubjectName   string
-	RoleIndicator omega.Role
-	Metadata      *base.Metadata
-	Skill         *omega.Skill
+	TransitFrame
 }
 
-func (c *ChannelMessage) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.FromSession = tf.GetChannelMessage().GetFromSession()
-	c.Message = tf.GetChannelMessage().GetMessage()
-	c.Subject = tf.GetChannelMessage().GetSubject()
-	c.SubjectName = tf.GetChannelMessage().GetSubjectName()
-	c.RoleIndicator = tf.GetChannelMessage().GetRoleIndicator()
-	c.Metadata = tf.GetChannelMessage().GetMetadata()
-	c.Skill = tf.GetChannelMessage().GetSkill()
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *ChannelMessage) GetChannelId() string {
+	return c.BaseTransitFrame().GetChannelMessage().GetChannelId()
+}
+
+func (c *ChannelMessage) GetOffset() int64 {
+	return c.BaseTransitFrame().GetChannelMessage().GetOffset()
+}
+
+func (c *ChannelMessage) GetFromSession() string {
+	return c.BaseTransitFrame().GetChannelMessage().GetFromSession()
+}
+
+func (c *ChannelMessage) GetMessage() string {
+	return c.BaseTransitFrame().GetChannelMessage().GetMessage()
+}
+
+func (c *ChannelMessage) GetSubject() string {
+	return c.BaseTransitFrame().GetChannelMessage().GetSubject()
+}
+
+func (c *ChannelMessage) GetSubjectName() string {
+	return c.BaseTransitFrame().GetChannelMessage().GetSubjectName()
+}
+
+func (c *ChannelMessage) GetRoleIndicator() omega.Role {
+	return c.BaseTransitFrame().GetChannelMessage().GetRoleIndicator()
+}
+
+func (c *ChannelMessage) GetMetadata() *base.Metadata {
+	return c.BaseTransitFrame().GetChannelMessage().GetMetadata()
+}
+
+func (c *ChannelMessage) GetSkill() *omega.Skill {
+	return c.BaseTransitFrame().GetChannelMessage().GetSkill()
 }

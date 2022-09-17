@@ -5,12 +5,13 @@ import (
 )
 
 type VoteStatus struct {
-	voteTransitFrame
-	Status omega.Vote_Status
+	TransitFrame
 }
 
-func (c *VoteStatus) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.Status = tf.GetVoteStatus().GetStatus()
-	c.voteTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (x *VoteStatus) GetVoteId() string {
+	return x.BaseTransitFrame().GetVoteStatus().GetVoteId()
+}
+
+func (x *VoteStatus) GetStatus() omega.Vote_Status {
+	return x.BaseTransitFrame().GetVoteStatus().GetStatus()
 }

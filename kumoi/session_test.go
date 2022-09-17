@@ -28,7 +28,7 @@ func TestOmega_RemoteSession(t *testing.T) {
 
 	bwg := concurrent.WaitGroup{}
 	ro.Session().OnMessage(func(msg *messages.SessionMessage) {
-		println(msg.Message)
+		println(msg.GetMessage())
 		bwg.Done()
 		got = true
 		gc++
@@ -222,7 +222,7 @@ func TestOmega_MultiChannelCount(t *testing.T) {
 			<-time.After(time.Second * 3)
 			for ir := 0; ir < times; ir++ {
 				time.Sleep(time.Millisecond * 100)
-				assert.Equal(t, thread+1, int(ch.Count().TransitFrame().Count))
+				assert.Equal(t, thread+1, int(ch.Count().TransitFrame().GetCount()))
 				if ii == 0 {
 					println(fmt.Sprintf("round %d done", ir+1))
 				}

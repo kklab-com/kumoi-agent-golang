@@ -24,6 +24,7 @@ var domain = ""
 var conf *base.Config
 
 const Timeout = time.Second
+const TestMessage = "MESSAGE"
 
 func TestMain(m *testing.M) {
 	appId = os.Getenv("TEST_APP_ID")
@@ -54,7 +55,7 @@ func TestOmega(t *testing.T) {
 		vfl.Completable().Complete(nil)
 	})
 
-	ch.Watch(func(msg messages.ChannelFrame) {
+	ch.Watch(func(msg messages.TransitFrame) {
 		println(reflect.ValueOf(msg).Elem().Type().Name())
 	})
 
@@ -73,7 +74,7 @@ func TestOmega(t *testing.T) {
 		vfc.Completable().Complete(nil)
 	})
 
-	ch.Watch(func(msg messages.ChannelFrame) {
+	ch.Watch(func(msg messages.TransitFrame) {
 		println(reflect.ValueOf(msg).Elem().Type().Name())
 	})
 
@@ -85,9 +86,9 @@ func TestOmega(t *testing.T) {
 	<-time.After(2 * time.Second)
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, int32(1), ch.Count().TransitFrame().Count)
+	assert.Equal(t, int32(1), ch.Count().TransitFrame().GetCount())
 	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().GetName())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Nil(t, cp.Next())
@@ -98,7 +99,7 @@ func TestOmega(t *testing.T) {
 	assert.NotNil(t, cp)
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
-	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().GetName())
 	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
 	assert.Equal(t, ch.Id(), cp.Next().Cast().CloseChannel().GetChannelId())
 	assert.Nil(t, cp.Next())
@@ -264,7 +265,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	println(nCount)
 	<-time.After(time.Second)
 	vtc := ovt.Count().TransitFrame()
-	assert.Equal(t, 1, int(vtc.VoteOptions[0].Count+vtc.VoteOptions[1].Count))
+	assert.Equal(t, 1, int(vtc.GetVoteOptions()[0].Count+vtc.GetVoteOptions()[1].Count))
 	och.Close()
 	assert.True(t, ovt.Close().AwaitTimeout(Timeout).IsSuccess())
 	ng.Close().Await()

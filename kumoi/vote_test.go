@@ -30,7 +30,7 @@ func TestOmegaVote(t *testing.T) {
 		println("first leave")
 	})
 
-	vt.Watch(func(msg messages.VoteFrame) {
+	vt.Watch(func(msg messages.TransitFrame) {
 		print("w")
 	})
 
@@ -48,8 +48,8 @@ func TestOmegaVote(t *testing.T) {
 		println("first close")
 	})
 
-	vt.Watch(func(msg messages.VoteFrame) {
-		print("w")
+	vt.Watch(func(msg messages.TransitFrame) {
+		println("w")
 	})
 
 	assert.NotNil(t, vt)
@@ -58,7 +58,7 @@ func TestOmegaVote(t *testing.T) {
 	assert.True(t, vt.Info().VoteOptions()[0].Select())
 	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
 	assert.False(t, vt.Select(vt.Info().VoteOptions()[1].Id))
-	assert.Equal(t, int32(1), vt.Count().TransitFrame().VoteOptions[0].Count)
+	assert.Equal(t, int32(1), vt.Count().TransitFrame().GetVoteOptions()[0].Count)
 	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, o.Close().AwaitTimeout(Timeout).IsSuccess())
 }
@@ -76,7 +76,7 @@ func TestOmegaVoteWatch(t *testing.T) {
 	assert.NotNil(t, vtf.Response())
 	vt := vtf.Join()
 	vmCount := 0
-	vt.Watch(func(msg messages.VoteFrame) {
+	vt.Watch(func(msg messages.TransitFrame) {
 		if _, ok := msg.(*messages.VoteMessage); ok {
 			vmCount++
 		}

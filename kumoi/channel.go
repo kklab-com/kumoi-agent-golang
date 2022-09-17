@@ -54,7 +54,7 @@ func (c *ChannelInfo) Join(key string) *Channel {
 				role:     cv.GetRoleIndicator(),
 				onLeave:  func() {},
 				onClose:  func() {},
-				watch:    func(msg messages.ChannelFrame) {},
+				watch:    func(msg messages.TransitFrame) {},
 			}
 
 			ch.info.name = cv.GetName()
@@ -82,7 +82,7 @@ type Channel struct {
 	role             omega.Role
 	roleName         string
 	onLeave, onClose func()
-	watch            func(msg messages.ChannelFrame)
+	watch            func(msg messages.TransitFrame)
 }
 
 func (c *Channel) watchId() string {
@@ -195,7 +195,7 @@ func (c *Channel) OnClose(f func()) *Channel {
 	return c
 }
 
-func (c *Channel) Watch(f func(msg messages.ChannelFrame)) *Channel {
+func (c *Channel) Watch(f func(msg messages.TransitFrame)) *Channel {
 	c.watch = f
 	return c
 }
@@ -227,7 +227,7 @@ func (c *Channel) init() {
 					fc.info.createdAt = tfd.GetCreatedAt()
 				}
 
-				if ctf := getParsedTransitFrameFromBaseTransitFrame(tf).Cast().ChannelFrame(); ctf != nil {
+				if ctf := getParsedTransitFrameFromBaseTransitFrame(tf); ctf != nil {
 					fc.watch(ctf)
 				} else {
 					kklogger.WarnJ("kumoi:Channel.init", fmt.Sprintf("%s should not be here", tf.String()))

@@ -33,11 +33,11 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	})
 
 	cmMeta := concurrent.NewFuture()
-	ch.Watch(func(msg messages.ChannelFrame) {
+	ch.Watch(func(msg messages.TransitFrame) {
 		println(reflect.ValueOf(msg).Elem().Type().Name())
 		switch v := msg.(type) {
 		case *messages.ChannelMessage:
-			if v.Metadata != nil && v.Metadata.GetFields()["typ"].GetStringValue() == "SendMessage" {
+			if v.GetMetadata() != nil && v.GetMetadata().GetFields()["typ"].GetStringValue() == "SendMessage" {
 				cmMeta.Completable().Complete(nil)
 			}
 		}
@@ -59,7 +59,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 		closed = true
 	})
 
-	ch.Watch(func(msg messages.ChannelFrame) {
+	ch.Watch(func(msg messages.TransitFrame) {
 		println(reflect.ValueOf(msg).Elem().Type().Name())
 	})
 
@@ -71,9 +71,9 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	<-time.After(2 * time.Second)
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
-	assert.Equal(t, int32(1), ch.Count().TransitFrame().Count)
+	assert.Equal(t, int32(1), ch.Count().TransitFrame().GetCount())
 	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().GetName())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Nil(t, cp.Next())
@@ -84,7 +84,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	assert.NotNil(t, cp)
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
-	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().Name)
+	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().GetName())
 	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
 	assert.Equal(t, ch.Id(), cp.Next().Cast().CloseChannel().GetChannelId())
 	assert.Nil(t, cp.Next())

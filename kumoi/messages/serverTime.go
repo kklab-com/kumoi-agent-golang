@@ -1,16 +1,13 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type ServerTime struct {
-	transitFrame
-	UnixNano      int64
-	UnixTimestamp int64
+	TransitFrame
 }
 
-func (c *ServerTime) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.UnixNano = tf.GetServerTime().GetUnixNano()
-	c.UnixTimestamp = tf.GetServerTime().GetUnixTimestamp()
-	c.transitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *ServerTime) GetUnixNano() int64 {
+	return c.BaseTransitFrame().GetServerTime().GetUnixNano()
+}
+
+func (c *ServerTime) GetUnixTimestamp() int64 {
+	return c.BaseTransitFrame().GetServerTime().GetUnixTimestamp()
 }

@@ -6,27 +6,25 @@ import (
 )
 
 type GetVoteMeta struct {
-	voteTransitFrame
-	VoteOptions []VoteOption
-	Data        *base.Metadata
-	Name        string
-	CreatedAt   int64
+	TransitFrame
 }
 
-func (c *GetVoteMeta) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.VoteOptions = nil
-	for _, vto := range tf.GetVoteCount().GetVoteOptions() {
-		c.VoteOptions = append(c.VoteOptions, VoteOption{
-			Id:          vto.GetId(),
-			Name:        vto.GetName(),
-			Count:       vto.GetCount(),
-			SubjectList: vto.GetSubjectList(),
-		})
-	}
+func (x *GetVoteMeta) GetVoteId() string {
+	return x.BaseTransitFrame().GetGetVoteMeta().GetVoteId()
+}
 
-	c.Data = tf.GetGetVoteMeta().GetData()
-	c.Name = tf.GetGetVoteMeta().GetName()
-	c.CreatedAt = tf.GetGetChannelMeta().GetCreatedAt()
-	c.voteTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (x *GetVoteMeta) GetVoteOptions() []*omega.Vote_Option {
+	return x.BaseTransitFrame().GetGetVoteMeta().GetVoteOptions()
+}
+
+func (x *GetVoteMeta) GetData() *base.Metadata {
+	return x.BaseTransitFrame().GetGetVoteMeta().GetData()
+}
+
+func (x *GetVoteMeta) GetName() string {
+	return x.BaseTransitFrame().GetGetVoteMeta().GetName()
+}
+
+func (x *GetVoteMeta) GetCreatedAt() int64 {
+	return x.BaseTransitFrame().GetGetVoteMeta().GetCreatedAt()
 }

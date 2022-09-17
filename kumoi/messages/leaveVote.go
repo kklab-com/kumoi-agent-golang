@@ -1,14 +1,13 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type LeaveVote struct {
-	voteTransitFrame
-	SessionId string
+	TransitFrame
 }
 
-func (c *LeaveVote) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.SessionId = tf.GetLeaveVote().GetSessionId()
-	c.voteTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *LeaveVote) GetSessionId() string {
+	return c.BaseTransitFrame().GetLeaveVote().GetSessionId()
+}
+
+func (c *LeaveVote) GetVoteId() string {
+	return c.BaseTransitFrame().GetLeaveVote().GetVoteId()
 }
