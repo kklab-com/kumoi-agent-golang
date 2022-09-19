@@ -11,8 +11,8 @@ import (
 
 func TestAgentMessage(t *testing.T) {
 	rmsg := "test message"
-	rag := agentBuilder.Connect().Agent()
-	ag := agentBuilder.Connect().Agent()
+	rag := agentBuilder.Connect().Get()
+	ag := agentBuilder.Connect().Get()
 	assert.NotEmpty(t, ag)
 	assert.False(t, ag.Session().IsClosed())
 	assert.NotEmpty(t, ag.Session().GetId())
@@ -30,8 +30,8 @@ func TestAgentMessage(t *testing.T) {
 }
 
 func TestAgent(t *testing.T) {
-	rag := agentBuilder.Connect().Agent()
-	ag := agentBuilder.Connect().Agent()
+	rag := agentBuilder.Connect().Get()
+	ag := agentBuilder.Connect().Get()
 	assert.NotEmpty(t, ag)
 	assert.False(t, ag.Session().IsClosed())
 	assert.NotEmpty(t, ag.Session().GetId())
@@ -45,8 +45,8 @@ func TestAgent(t *testing.T) {
 		assert.NotEmpty(t, resp.OwnerKey)
 		assert.NotEmpty(t, resp.ParticipatorKey)
 		assert.Equal(t, 60, resp.IdleTimeoutSecond)
-		assert.Equal(t, omega.Role_RoleOwner, ag.JoinChannel(resp.ChannelId, resp.OwnerKey).TransitFrame().GetJoinChannel().GetRoleIndicator())
-		assert.Equal(t, omega.Role_RoleParticipator, rag.JoinChannel(resp.ChannelId, "").TransitFrame().GetJoinChannel().GetRoleIndicator())
+		assert.Equal(t, omega.Role_RoleOwner, ag.JoinChannel(resp.ChannelId, resp.OwnerKey).Get().GetJoinChannel().GetRoleIndicator())
+		assert.Equal(t, omega.Role_RoleParticipator, rag.JoinChannel(resp.ChannelId, "").Get().GetJoinChannel().GetRoleIndicator())
 		vf1, vf2, vf3, vf4 := concurrent.NewFuture(), concurrent.NewFuture(), concurrent.NewFuture(), concurrent.NewFuture()
 		rag.OnMessage(func(tf *omega.TransitFrame) {
 			if msg := tf.GetChannelOwnerMessage(); msg != nil && msg.Message == "OWNER" {

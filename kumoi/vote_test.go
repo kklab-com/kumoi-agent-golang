@@ -11,7 +11,7 @@ import (
 )
 
 func TestOmegaVote(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Get()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.ServerTime())
@@ -64,7 +64,7 @@ func TestOmegaVote(t *testing.T) {
 }
 
 func TestOmegaVoteWatch(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Get()
 	assert.NotEmpty(t, o)
 	vtf := o.CreateVote(apirequest.CreateVote{
 		Name:              "!!!",
@@ -73,7 +73,7 @@ func TestOmegaVoteWatch(t *testing.T) {
 	})
 
 	assert.NotNil(t, vtf)
-	assert.NotNil(t, vtf.Response())
+	assert.NotNil(t, vtf.Get())
 	vt := vtf.Join()
 	vmCount := 0
 	vt.Watch(func(msg messages.TransitFrame) {

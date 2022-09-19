@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestOmega(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Get()
 	assert.NotEmpty(t, o)
 	assert.NotEmpty(t, o.Hello())
 	assert.NotEmpty(t, o.ServerTime())
@@ -46,10 +46,10 @@ func TestOmega(t *testing.T) {
 		IdleTimeoutSecond: 300,
 	})
 
-	assert.NotNil(t, chf.Response())
+	assert.NotNil(t, chf.Get())
 	chInfo := chf.Info()
 	assert.NotNil(t, chInfo)
-	ch := chInfo.Join(chf.Response().ParticipatorKey)
+	ch := chInfo.Join(chf.Get().ParticipatorKey)
 	vfl := concurrent.NewFuture()
 	ch.OnLeave(func() {
 		vfl.Completable().Complete(nil)
@@ -108,7 +108,7 @@ func TestOmega(t *testing.T) {
 }
 
 func TestOmegaClose(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Get()
 	bwg := concurrent.WaitGroup{}
 	go func() {
 		<-time.After(3 * time.Second)
@@ -135,7 +135,7 @@ func TestOmegaClose(t *testing.T) {
 }
 
 func TestOmegaWriteOnClosed(t *testing.T) {
-	o := NewOmegaBuilder(conf).Connect().Omega()
+	o := NewOmegaBuilder(conf).Connect().Get()
 	chResp := o.CreateChannel(apirequest.CreateChannel{})
 	chInfo := chResp.Info()
 	ch := chInfo.Join("")
@@ -148,7 +148,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	tCount := int32(0)
 	nCount := int32(0)
 	bwg := concurrent.WaitGroup{}
-	ng := NewOmegaBuilder(conf).Connect().Omega()
+	ng := NewOmegaBuilder(conf).Connect().Get()
 	och := ng.CreateChannel(apirequest.CreateChannel{Name: "TestOmega_MultiVoteChannel_C"}).Join()
 	if och == nil {
 		assert.Fail(t, "create ch nil")
@@ -185,7 +185,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 
 	for i := 0; i < thread; i++ {
 		go func(ii int) {
-			og := NewOmegaBuilder(conf).Connect().Omega()
+			og := NewOmegaBuilder(conf).Connect().Get()
 			ch := og.Channel(och.Id()).Join("")
 			if ch == nil {
 				assert.Fail(t, "get ch nil")

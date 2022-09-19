@@ -17,29 +17,6 @@ import (
 
 var ErrConnectionClosed = errors.Errorf("connection closed")
 
-type SendFuture interface {
-	concurrent.Future
-	SentTransitFrame() *omega.TransitFrame
-	TransitFrame() *omega.TransitFrame
-}
-
-type DefaultSendFuture struct {
-	concurrent.Future
-	tf *omega.TransitFrame
-}
-
-func (f *DefaultSendFuture) SentTransitFrame() *omega.TransitFrame {
-	return f.tf
-}
-
-func (f *DefaultSendFuture) TransitFrame() *omega.TransitFrame {
-	if v := f.Get(); v != nil {
-		return v.(*omega.TransitFrame)
-	}
-
-	return nil
-}
-
 type RemoteSession interface {
 	GetId() string
 	GetSubject() string
@@ -53,7 +30,7 @@ type RemoteSession interface {
 
 type Session interface {
 	RemoteSession
-	GetRemoteSession(sessionId string) RemoteSessionFuture
+	GetRemoteSession(sessionId string) concurrent.CastFuture[RemoteSession]
 	Ch() channel.Channel
 	GetEngine() *Engine
 	SetName(name string) SendFuture
@@ -67,40 +44,6 @@ type Session interface {
 	OnRead(f func(tf *omega.TransitFrame))
 	OnError(f func(err error))
 	IsClosed() bool
-}
-
-type SessionFuture interface {
-	concurrent.Future
-	Session() Session
-}
-
-type DefaultSessionFuture struct {
-	concurrent.Future
-}
-
-func (f *DefaultSessionFuture) Session() Session {
-	if v := f.Get(); v != nil {
-		return v.(*session)
-	}
-
-	return nil
-}
-
-type RemoteSessionFuture interface {
-	concurrent.Future
-	Session() RemoteSession
-}
-
-type DefaultRemoteSessionFuture struct {
-	concurrent.Future
-}
-
-func (f *DefaultRemoteSessionFuture) Session() RemoteSession {
-	if v := f.Get(); v != nil {
-		return v.(*remoteSession)
-	}
-
-	return nil
 }
 
 type remoteSession struct {
@@ -235,8 +178,8 @@ func (s *session) invokeOnErrorHandler(err error) {
 	}
 }
 
-func (s *session) GetRemoteSession(sessionId string) RemoteSessionFuture {
-	rsf := &DefaultRemoteSessionFuture{concurrent.NewFuture()}
+func (s *session) GetRemoteSession(sessionId string) concurrent.CastFuture[RemoteSession] {
+	rsf := concurrent.NewCastFuture[RemoteSession]()
 	source := s
 	source.SendRequest(&omega.TransitFrame_GetSessionMeta{GetSessionMeta: &omega.GetSessionMeta{SessionId: sessionId}}).
 		AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
@@ -320,15 +263,15 @@ func (s *session) Send(tf *omega.TransitFrame) SendFuture {
 	stf := tf
 	if s.IsClosed() {
 		return &DefaultSendFuture{
-			Future: concurrent.NewFailedFuture(ErrConnectionClosed),
-			tf:     stf,
+			CastFuture: concurrent.WrapCastFuture[*omega.TransitFrame](concurrent.NewFailedFuture(ErrConnectionClosed)),
+			tf:         stf,
 		}
 	}
 
 	var rsf SendFuture
 	rsf = &DefaultSendFuture{
-		Future: concurrent.NewFuture(),
-		tf:     stf,
+		CastFuture: concurrent.NewCastFuture[*omega.TransitFrame](),
+		tf:         stf,
 	}
 
 	if stf.GetClass() == omega.TransitFrame_ClassRequest {

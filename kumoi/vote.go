@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	concurrent "github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base"
@@ -73,8 +72,8 @@ func (v *VoteInfo) Join(key string) *Vote {
 	return nil
 }
 
-func (v *VoteInfo) Close(key string) concurrent.Future {
-	return v.omega.agent.CloseVote(v.VoteId(), key)
+func (v *VoteInfo) Close(key string) SendFuture[*messages.CloseVote] {
+	return wrapSendFuture[*messages.CloseVote](v.omega.agent.CloseVote(v.VoteId(), key))
 }
 
 type Vote struct {
@@ -144,7 +143,7 @@ func (v *Vote) Select(voteOptionId string) bool {
 		return false
 	}
 
-	return !f.Get().(*omega.TransitFrame).GetVoteSelect().Deny
+	return !f.Get().GetVoteSelect().Deny
 }
 
 func (v *Vote) Status(statusType omega.Vote_Status) SendFuture[*messages.VoteStatus] {

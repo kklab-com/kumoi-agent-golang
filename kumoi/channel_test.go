@@ -15,17 +15,17 @@ import (
 )
 
 func TestChannel_ChannelJoin(t *testing.T) {
-	omg := NewOmegaBuilder(conf).Connect().Omega()
+	omg := NewOmegaBuilder(conf).Connect().Get()
 	chf := omg.CreateChannel(apirequest.CreateChannel{
 		Name:              t.Name(),
 		IdleTimeoutSecond: 100,
 	})
 
-	assert.NotNil(t, chf.Response())
+	assert.NotNil(t, chf.Get())
 	chInfo := chf.Info()
 	assert.NotNil(t, chInfo)
 	assert.Equal(t, t.Name(), chInfo.Name())
-	ch := chInfo.Join(chf.Response().ParticipatorKey)
+	ch := chInfo.Join(chf.Get().ParticipatorKey)
 	assert.NotNil(t, ch)
 	vf := concurrent.NewFuture()
 	ch.OnLeave(func() {

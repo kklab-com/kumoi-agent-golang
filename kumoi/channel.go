@@ -44,7 +44,7 @@ func (c *ChannelInfo) CreatedAt() int64 {
 
 func (c *ChannelInfo) Join(key string) *Channel {
 	if v := c.omega.Agent().JoinChannel(c.ChannelId(), key).Get(); v != nil {
-		if cv := v.(*omega.TransitFrame).GetJoinChannel(); cv != nil {
+		if cv := v.GetJoinChannel(); cv != nil {
 			nc := *c
 			ch := &Channel{
 				key:      key,
@@ -71,8 +71,8 @@ func (c *ChannelInfo) Join(key string) *Channel {
 	return nil
 }
 
-func (c *ChannelInfo) Close(key string) concurrent.Future {
-	return c.omega.agent.CloseChannel(c.ChannelId(), key)
+func (c *ChannelInfo) Close(key string) SendFuture[*messages.CloseChannel] {
+	return wrapSendFuture[*messages.CloseChannel](c.omega.agent.CloseChannel(c.ChannelId(), key))
 }
 
 type Channel struct {
@@ -132,7 +132,7 @@ func (c *Channel) SetSkill(skill *omega.Skill) SendFuture[*messages.SetChannelMe
 func (c *Channel) Leave() SendFuture[*messages.LeaveChannel] {
 	wsf := wrapSendFuture[*messages.LeaveChannel](c.omega.Agent().LeaveChannel(c.Info().channelId))
 	fc := c
-	wsf.Base().Then(func(parent concurrent.Future) interface{} {
+	wsf.Base().Chainable().Then(func(parent concurrent.Future) interface{} {
 		if parent.IsSuccess() {
 			fc.invokeOnLeaveChannelSuccess()
 		}
@@ -146,7 +146,7 @@ func (c *Channel) Leave() SendFuture[*messages.LeaveChannel] {
 func (c *Channel) Close() SendFuture[*messages.CloseChannel] {
 	wsf := wrapSendFuture[*messages.CloseChannel](c.omega.Agent().CloseChannel(c.Info().channelId, c.key))
 	fc := c
-	wsf.Base().Then(func(parent concurrent.Future) interface{} {
+	wsf.Base().Chainable().Then(func(parent concurrent.Future) interface{} {
 		if parent.IsSuccess() {
 			fc.invokeOnCloseChannelSuccess()
 		}

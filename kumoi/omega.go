@@ -2,7 +2,6 @@ package kumoi
 
 import (
 	"sync"
-	"time"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/goth-kkutil/value"
@@ -13,89 +12,6 @@ import (
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
-
-type SendFuture[T messages.TransitFrame] interface {
-	Base() base.SendFuture
-	Await() SendFuture[T]
-	AwaitTimeout(timeout time.Duration) SendFuture[T]
-	IsDone() bool
-	IsSuccess() bool
-	IsCancelled() bool
-	IsFail() bool
-	Error() error
-	TransitFrame() (t T)
-	AddListener(listener concurrent.FutureListener) SendFuture[T]
-}
-
-func wrapSendFuture[T messages.TransitFrame](sf base.SendFuture) (t SendFuture[T]) {
-	return value.Cast[SendFuture[T]](&DefaultSendFuture[T]{bf: sf})
-}
-
-type DefaultSendFuture[T messages.TransitFrame] struct {
-	bf base.SendFuture
-}
-
-func (f *DefaultSendFuture[T]) Base() base.SendFuture {
-	return f.bf
-}
-
-func (f *DefaultSendFuture[T]) Await() SendFuture[T] {
-	f.Base().Await()
-	return f
-}
-
-func (f *DefaultSendFuture[T]) AwaitTimeout(timeout time.Duration) SendFuture[T] {
-	f.Base().AwaitTimeout(timeout)
-	return f
-}
-
-func (f *DefaultSendFuture[T]) IsDone() bool {
-	return f.Base().IsDone()
-}
-
-func (f *DefaultSendFuture[T]) IsSuccess() bool {
-	return f.Base().IsSuccess()
-}
-
-func (f *DefaultSendFuture[T]) IsCancelled() bool {
-	return f.Base().IsCancelled()
-}
-
-func (f *DefaultSendFuture[T]) IsFail() bool {
-	return f.Base().IsFail()
-}
-
-func (f *DefaultSendFuture[T]) Error() error {
-	return f.Base().Error()
-}
-
-func (f *DefaultSendFuture[T]) TransitFrame() (t T) {
-	var an any = getParsedTransitFrameFromBaseTransitFrame(f.bf.TransitFrame())
-	t = value.Cast[T](an)
-	return
-}
-
-func (f *DefaultSendFuture[T]) AddListener(listener concurrent.FutureListener) SendFuture[T] {
-	f.Base().AddListener(listener)
-	return f
-}
-
-type OmegaFuture interface {
-	concurrent.Future
-	Omega() *Omega
-}
-
-type DefaultOmegaFuture struct {
-	concurrent.Future
-}
-
-func (f *DefaultOmegaFuture) Omega() *Omega {
-	if v := f.Get(); v != nil {
-		return v.(*Omega)
-	}
-
-	return nil
-}
 
 type Omega struct {
 	agent                   base.Agent
@@ -160,7 +76,7 @@ func (o *Omega) Session() Session {
 }
 
 func (o *Omega) GetRemoteSession(sessionId string) RemoteSession[base.RemoteSession] {
-	if session := o.agent.GetRemoteSession(sessionId).Session(); session != nil {
+	if session := o.agent.GetRemoteSession(sessionId).Get(); session != nil {
 		return &remoteSession[base.RemoteSession]{session: session}
 	}
 
@@ -281,116 +197,20 @@ func (o *Omega) invokeOnError(err error) {
 	o.OnErrorHandler(err)
 }
 
-type CreateChannelFuture interface {
-	concurrent.Future
-	Response() *apiresponse.CreateChannel
-	Info() *ChannelInfo
-	Join() *Channel
+func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) *CreateChannelFuture {
+	omg := o
+	return &CreateChannelFuture{omegaFuture[*apiresponse.CreateChannel]{
+		CastFuture: omg.agent.CreateChannel(createChannel),
+		omega:      omg,
+	}}
 }
 
-type DefaultCreateChannelFuture struct {
-	concurrent.Future
-	omega *Omega
-}
-
-func (f *DefaultCreateChannelFuture) Response() *apiresponse.CreateChannel {
-	if v := f.Get(); v != nil {
-		return v.(*apiresponse.CreateChannel)
-	}
-
-	return nil
-}
-
-func (f *DefaultCreateChannelFuture) Info() *ChannelInfo {
-	if resp := f.Response(); resp != nil {
-		return f.omega.Channel(resp.ChannelId)
-	}
-
-	return nil
-}
-
-func (f *DefaultCreateChannelFuture) Join() *Channel {
-	if resp := f.Response(); resp != nil {
-		return f.Info().Join(resp.OwnerKey)
-	}
-
-	return nil
-}
-
-func (o *Omega) CreateChannel(createChannel apirequest.CreateChannel) CreateChannelFuture {
-	cf := o.agent.CreateChannel(createChannel)
-	ccf := &DefaultCreateChannelFuture{
-		Future: concurrent.NewFuture(),
-		omega:  o,
-	}
-
-	cf.Base().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			ccf.Completable().Complete(f.Get())
-		} else if f.IsFail() {
-			ccf.Completable().Fail(f.Error())
-		} else if f.IsCancelled() {
-			ccf.Completable().Cancel()
-		}
-	}))
-
-	return ccf
-}
-
-type CreateVoteFuture interface {
-	concurrent.Future
-	Response() *apiresponse.CreateVote
-	Info() *VoteInfo
-	Join() *Vote
-}
-
-type DefaultCreateVoteFuture struct {
-	concurrent.Future
-	omega *Omega
-}
-
-func (f *DefaultCreateVoteFuture) Response() *apiresponse.CreateVote {
-	if v := f.Get(); v != nil {
-		return v.(*apiresponse.CreateVote)
-	}
-
-	return nil
-}
-
-func (f *DefaultCreateVoteFuture) Info() *VoteInfo {
-	if resp := f.Response(); resp != nil {
-		return f.omega.Vote(resp.VoteId)
-	}
-
-	return nil
-}
-
-func (f *DefaultCreateVoteFuture) Join() *Vote {
-	if resp := f.Response(); resp != nil {
-		return f.Info().Join(resp.Key)
-	}
-
-	return nil
-}
-
-func (o *Omega) CreateVote(createVote apirequest.CreateVote) CreateVoteFuture {
-	vf := o.agent.CreateVote(createVote)
-	cvf := &DefaultCreateVoteFuture{
-		Future: concurrent.NewFuture(),
-		omega:  o,
-	}
-
-	vf.Base().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
-		if f.IsSuccess() {
-			cvf.Completable().Complete(f.Get())
-		} else if f.IsFail() {
-			cvf.Completable().Fail(f.Error())
-		} else if f.IsCancelled() {
-			cvf.Completable().Cancel()
-		}
-	}))
-
-	return cvf
+func (o *Omega) CreateVote(createVote apirequest.CreateVote) *CreateVoteFuture {
+	omg := o
+	return &CreateVoteFuture{omegaFuture[*apiresponse.CreateVote]{
+		CastFuture: omg.agent.CreateVote(createVote),
+		omega:      omg,
+	}}
 }
 
 type OmegaBuilder struct {
@@ -405,12 +225,12 @@ func NewOmegaBuilder(conf *base.Config) *OmegaBuilder {
 	return &OmegaBuilder{conf: conf}
 }
 
-func (b *OmegaBuilder) Connect() OmegaFuture {
+func (b *OmegaBuilder) Connect() concurrent.CastFuture[*Omega] {
 	if b.conf == nil {
-		return &DefaultOmegaFuture{Future: concurrent.NewFailedFuture(base.ErrConfigIsEmpty)}
+		return concurrent.WrapCastFuture[*Omega](concurrent.NewFailedFuture(base.ErrConfigIsEmpty))
 	}
 
-	of := &DefaultOmegaFuture{Future: concurrent.NewFuture()}
+	of := concurrent.NewCastFuture[*Omega]()
 	base.NewAgentBuilder(b.conf).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			of.Completable().Complete(NewOmega(f.Get().(base.Agent)))

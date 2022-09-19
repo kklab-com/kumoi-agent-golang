@@ -12,8 +12,8 @@ import (
 )
 
 func TestMessage_Broadcast(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 	oSecond.OnBroadcastHandler = func(tf *messages.Broadcast) {
 		if tf.GetMessage() == TestMessage {
@@ -28,12 +28,12 @@ func TestMessage_Broadcast(t *testing.T) {
 }
 
 func TestMessage_ChannelCount(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateChannel(apirequest.CreateChannel{Name: t.Name()})
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.OwnerKey)
 	info := reqFuture.Info()
@@ -56,12 +56,12 @@ func TestMessage_ChannelCount(t *testing.T) {
 }
 
 func TestMessage_ChannelMessage(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateChannel(apirequest.CreateChannel{Name: t.Name()})
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.OwnerKey)
 	info := reqFuture.Info()
@@ -94,12 +94,12 @@ func TestMessage_ChannelMessage(t *testing.T) {
 }
 
 func TestMessage_ChannelOwnerMessage(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateChannel(apirequest.CreateChannel{Name: t.Name()})
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.OwnerKey)
 	info := reqFuture.Info()
@@ -133,12 +133,12 @@ func TestMessage_ChannelOwnerMessage(t *testing.T) {
 }
 
 func TestMessage_GetChannelMeta(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateChannel(apirequest.CreateChannel{Name: t.Name()})
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.OwnerKey)
 	info := reqFuture.Info()
@@ -163,8 +163,8 @@ func TestMessage_GetChannelMeta(t *testing.T) {
 }
 
 func TestMessage_GetSessionMeta(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	assert.True(t, oFirst.Session().SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
@@ -178,8 +178,8 @@ func TestMessage_GetSessionMeta(t *testing.T) {
 }
 
 func TestMessage_GetVoteMeta(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
@@ -187,7 +187,7 @@ func TestMessage_GetVoteMeta(t *testing.T) {
 		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 	})
 
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.Key)
 	info := reqFuture.Info()
@@ -216,8 +216,8 @@ func TestMessage_GetVoteMeta(t *testing.T) {
 }
 
 func TestMessage_Hello(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	assert.True(t, oFirst.Hello().AwaitTimeout(Timeout).TransitFrame().GetSessionId() == oFirst.Session().GetId())
@@ -234,12 +234,12 @@ func TestMessage_Hello(t *testing.T) {
 }
 
 func TestMessage_ChannelLeaveChannel(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateChannel(apirequest.CreateChannel{Name: t.Name()})
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.OwnerKey)
 	info := reqFuture.Info()
@@ -272,8 +272,8 @@ func TestMessage_ChannelLeaveChannel(t *testing.T) {
 }
 
 func TestMessage_LeaveVote(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
@@ -281,7 +281,7 @@ func TestMessage_LeaveVote(t *testing.T) {
 		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 	})
 
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.Key)
 	info := reqFuture.Info()
@@ -311,8 +311,8 @@ func TestMessage_LeaveVote(t *testing.T) {
 }
 
 func TestMessage_ServerTime(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	assert.True(t, oFirst.ServerTime().AwaitTimeout(Timeout).TransitFrame().GetUnixNano() != 0)
@@ -327,8 +327,8 @@ func TestMessage_ServerTime(t *testing.T) {
 }
 
 func TestMessage_SessionMessage(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	oSecond.GetRemoteSession(oFirst.Session().GetId()).OnMessage(func(msg *messages.SessionMessage) {
@@ -345,7 +345,7 @@ func TestMessage_SessionMessage(t *testing.T) {
 }
 
 func TestMessage_SessionMessageSelf(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	oFirst.Session().OnMessage(func(msg *messages.SessionMessage) {
@@ -361,8 +361,8 @@ func TestMessage_SessionMessageSelf(t *testing.T) {
 }
 
 func TestMessage_VoteCount(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
@@ -370,7 +370,7 @@ func TestMessage_VoteCount(t *testing.T) {
 		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 	})
 
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.Key)
 	info := reqFuture.Info()
@@ -404,8 +404,8 @@ func TestMessage_VoteCount(t *testing.T) {
 }
 
 func TestMessage_VoteMessage(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
@@ -413,7 +413,7 @@ func TestMessage_VoteMessage(t *testing.T) {
 		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 	})
 
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.Key)
 	info := reqFuture.Info()
@@ -443,8 +443,8 @@ func TestMessage_VoteMessage(t *testing.T) {
 }
 
 func TestMessage_VoteOwnerMessage(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
@@ -452,7 +452,7 @@ func TestMessage_VoteOwnerMessage(t *testing.T) {
 		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 	})
 
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.Key)
 	info := reqFuture.Info()
@@ -483,8 +483,8 @@ func TestMessage_VoteOwnerMessage(t *testing.T) {
 }
 
 func TestMessage_VoteStatus(t *testing.T) {
-	oFirst := NewOmegaBuilder(conf).Connect().Omega()
-	oSecond := NewOmegaBuilder(conf).Connect().Omega()
+	oFirst := NewOmegaBuilder(conf).Connect().Get()
+	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
 	reqFuture := oFirst.CreateVote(apirequest.CreateVote{
@@ -492,7 +492,7 @@ func TestMessage_VoteStatus(t *testing.T) {
 		VoteOptions: []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 	})
 
-	resp := reqFuture.Response()
+	resp := reqFuture.Get()
 	assert.NotEmpty(t, resp)
 	assert.NotEmpty(t, resp.Key)
 	info := reqFuture.Info()

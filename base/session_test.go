@@ -34,8 +34,8 @@ func TestMain(m *testing.M) {
 func TestSessionEstablish(t *testing.T) {
 	cf := engine.connect()
 	assert.NotNil(t, cf.GetTimeout(Timeout))
-	assert.NotNil(t, cf.Session())
-	s := cf.Session()
+	assert.NotNil(t, cf.Get())
+	s := cf.Get()
 	assert.NotEmpty(t, s.GetId())
 	assert.NotEmpty(t, s.GetName())
 	assert.NotEmpty(t, s.Ping().Get())
@@ -44,13 +44,13 @@ func TestSessionEstablish(t *testing.T) {
 
 func TestSessionOperation(t *testing.T) {
 	sf := engine.connect()
-	assert.NotEmpty(t, sf.Session())
-	ss := sf.Session()
+	assert.NotEmpty(t, sf.Get())
+	ss := sf.Get()
 	ssp := ss.Ping()
 	ssp.Await()
-	assert.NotEmpty(t, ss.Ping().TransitFrame())
-	assert.NotEmpty(t, ss.Hello().TransitFrame().GetHello())
-	assert.NotEmpty(t, ss.ServerTime().TransitFrame().GetServerTime())
+	assert.NotEmpty(t, ss.Ping().Get())
+	assert.NotEmpty(t, ss.Hello().Get().GetHello())
+	assert.NotEmpty(t, ss.ServerTime().Get().GetServerTime())
 	assert.NotEmpty(t, ss.Ch())
 	assert.NotEmpty(t, ss.GetEngine())
 	assert.NotEmpty(t, ss.GetId())
@@ -63,8 +63,8 @@ func TestSessionOperation(t *testing.T) {
 
 func TestSessionMessage(t *testing.T) {
 	rmsg := "test message"
-	rs := engine.connect().Session()
-	s := engine.connect().Session()
+	rs := engine.connect().Get()
+	s := engine.connect().Get()
 	assert.NotEmpty(t, s)
 	assert.False(t, s.IsClosed())
 	assert.NotEmpty(t, s.GetId())
@@ -75,7 +75,7 @@ func TestSessionMessage(t *testing.T) {
 		vf.Completable().Complete(nil)
 	})
 
-	srs := s.GetRemoteSession(rs.GetId()).Session()
+	srs := s.GetRemoteSession(rs.GetId()).Get()
 	srs.SendMessage(rmsg).AwaitTimeout(Timeout)
 	srs.Close().AwaitTimeout(Timeout)
 	if _, f := s.(*session).remoteSessions.Load(srs.GetId()); f {
@@ -102,9 +102,9 @@ func TestSessionMessage(t *testing.T) {
 }
 
 func TestSessionsMessage(t *testing.T) {
-	rs1 := engine.connect().Session()
-	rs2 := engine.connect().Session()
-	s := engine.connect().Session()
+	rs1 := engine.connect().Get()
+	rs2 := engine.connect().Get()
+	s := engine.connect().Get()
 	wg := concurrent.WaitGroup{}
 	f := concurrent.NewFuture()
 	wg.Add(300)
