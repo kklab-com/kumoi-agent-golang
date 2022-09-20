@@ -1,12 +1,13 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type CloseChannel struct {
-	channelTransitFrame
+	TransitFrame
 }
 
-func (c *CloseChannel) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *CloseChannel) GetChannelId() string {
+	return c.BaseTransitFrame().GetCloseChannel().GetChannelId()
+}
+
+func (c *CloseChannel) GetOffset() int64 {
+	return c.BaseTransitFrame().GetCloseChannel().GetOffset()
 }

@@ -1,16 +1,21 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type SessionMessage struct {
-	transitFrame
-	FromSessionId string
-	Message       string
+	TransitFrame
 }
 
-func (c *SessionMessage) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.FromSessionId = tf.GetSessionMessage().GetFromSession()
-	c.Message = tf.GetSessionMessage().GetMessage()
-	c.transitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *SessionMessage) GetFromSession() string {
+	return c.BaseTransitFrame().GetSessionMessage().GetFromSession()
+}
+
+func (c *SessionMessage) GetToSession() string {
+	return c.BaseTransitFrame().GetSessionMessage().GetToSession()
+}
+
+func (c *SessionMessage) GetMessage() string {
+	return c.BaseTransitFrame().GetSessionMessage().GetMessage()
+}
+
+func (c *SessionMessage) GetSequential() bool {
+	return c.BaseTransitFrame().GetSessionMessage().GetSequential()
 }

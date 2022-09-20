@@ -6,16 +6,37 @@ import (
 )
 
 type JoinVote struct {
-	voteTransitFrame
-	Name            string
-	SessionId       string
-	SessionMetadata *base.Metadata
+	TransitFrame
 }
 
-func (c *JoinVote) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.Name = tf.GetJoinVote().GetName()
-	c.SessionId = tf.GetJoinVote().GetSessionId()
-	c.SessionMetadata = tf.GetJoinVote().GetSessionMetadata()
-	c.voteTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (x *JoinVote) GetName() string {
+	return x.BaseTransitFrame().GetJoinVote().GetName()
+}
+
+func (x *JoinVote) GetSessionId() string {
+	return x.BaseTransitFrame().GetJoinVote().GetSessionId()
+}
+
+func (x *JoinVote) GetSessionMetadata() *base.Metadata {
+	return x.BaseTransitFrame().GetJoinVote().GetSessionMetadata()
+}
+
+func (x *JoinVote) GetVoteId() string {
+	return x.BaseTransitFrame().GetJoinVote().GetVoteId()
+}
+
+func (x *JoinVote) GetVoteMetadata() *base.Metadata {
+	return x.BaseTransitFrame().GetJoinVote().GetVoteMetadata()
+}
+
+func (x *JoinVote) GetKey() string {
+	return x.BaseTransitFrame().GetJoinVote().GetKey()
+}
+
+func (x *JoinVote) GetCreatedAt() int64 {
+	return x.BaseTransitFrame().GetJoinVote().GetCreatedAt()
+}
+
+func (x *JoinVote) GetVoteOptions() []*omega.Vote_Option {
+	return x.BaseTransitFrame().GetJoinVote().GetVoteOptions()
 }

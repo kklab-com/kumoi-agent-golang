@@ -1,80 +1,12 @@
 package kumoi
 
 import (
-	"reflect"
-	"time"
-
 	concurrent "github.com/kklab-com/goth-concurrent"
 	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
-
-type SendFuture[T messages.TransitFrame] interface {
-	Base() base.SendFuture
-	Await() SendFuture[T]
-	AwaitTimeout(timeout time.Duration) SendFuture[T]
-	IsDone() bool
-	IsSuccess() bool
-	IsCancelled() bool
-	IsFail() bool
-	Error() error
-	TransitFrame() (t T)
-}
-
-func wrapSendFuture[T messages.TransitFrame](sf base.SendFuture) (t SendFuture[T]) {
-	return value.Cast[SendFuture[T]](&DefaultSendFuture[T]{bf: sf})
-}
-
-type DefaultSendFuture[T messages.TransitFrame] struct {
-	bf base.SendFuture
-}
-
-func (f *DefaultSendFuture[T]) Base() base.SendFuture {
-	return f.bf
-}
-
-func (f *DefaultSendFuture[T]) Await() SendFuture[T] {
-	f.Base().Await()
-	return f
-}
-
-func (f *DefaultSendFuture[T]) AwaitTimeout(timeout time.Duration) SendFuture[T] {
-	f.Base().AwaitTimeout(timeout)
-	return f
-}
-
-func (f *DefaultSendFuture[T]) IsDone() bool {
-	return f.Base().IsDone()
-}
-
-func (f *DefaultSendFuture[T]) IsSuccess() bool {
-	return f.Base().IsSuccess()
-}
-
-func (f *DefaultSendFuture[T]) IsCancelled() bool {
-	return f.Base().IsCancelled()
-}
-
-func (f *DefaultSendFuture[T]) IsFail() bool {
-	return f.Base().IsFail()
-}
-
-func (f *DefaultSendFuture[T]) Error() error {
-	return f.Base().Error()
-}
-
-func (f *DefaultSendFuture[T]) TransitFrame() (t T) {
-	var an any
-	if btf := f.bf.TransitFrame(); btf != nil {
-		an = reflect.New(reflect.TypeOf(t).Elem()).Interface()
-		value.Cast[messages.TransitFrameParsable](an).ParseTransitFrame(btf)
-	}
-
-	t = value.Cast[T](an)
-	return
-}
 
 type RemoteSession[T base.RemoteSession] interface {
 	Base() T
@@ -123,11 +55,7 @@ func (s *remoteSession[T]) GetMetadata() *base.Metadata {
 
 func (s *remoteSession[T]) OnMessage(f func(msg *messages.SessionMessage)) {
 	s.session.OnMessage(func(msg *omega.TransitFrame) {
-		if sm := msg.GetSessionMessage(); sm != nil {
-			nsm := &messages.SessionMessage{}
-			nsm.ParseTransitFrame(msg)
-			f(nsm)
-		}
+		f(value.Cast[*messages.SessionMessage](getParsedTransitFrameFromBaseTransitFrame(msg)))
 	})
 }
 

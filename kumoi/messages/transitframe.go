@@ -23,17 +23,12 @@ type TransitFrame interface {
 	Cast() CastTransitFrame
 }
 
-type TransitFrameParsable interface {
-	ParseTransitFrame(tf *omega.TransitFrame)
+func WrapTransitFrame(tf *omega.TransitFrame) TransitFrame {
+	return &transitFrame{tf: tf}
 }
 
 type transitFrame struct {
-	tf   *omega.TransitFrame
-	cast castTransitFrame
-}
-
-func (m *transitFrame) setCast(tf TransitFrame) {
-	m.cast.tf = tf
+	tf *omega.TransitFrame
 }
 
 func (m *transitFrame) GetTransitId() uint64 {
@@ -87,7 +82,7 @@ func (m *transitFrame) TypeName() string {
 }
 
 func (m *transitFrame) Cast() CastTransitFrame {
-	return &m.cast
+	return &castTransitFrame{tf: m}
 }
 
 func (m *transitFrame) Error() string {
@@ -98,14 +93,10 @@ func (m *transitFrame) Error() string {
 	return ""
 }
 
-func (m *transitFrame) ParseTransitFrame(tf *omega.TransitFrame) {
-	m.tf = tf
-}
-
 type CastTransitFrame interface {
+	Broadcast() *Broadcast
 	Hello() *Hello
 	ServerTime() *ServerTime
-	ChannelFrame() ChannelFrame
 	JoinChannel() *JoinChannel
 	GetChannelMeta() *GetChannelMeta
 	SetChannelMeta() *SetChannelMeta
@@ -114,7 +105,6 @@ type CastTransitFrame interface {
 	ChannelCount() *ChannelCount
 	LeaveChannel() *LeaveChannel
 	CloseChannel() *CloseChannel
-	VoteFrame() VoteFrame
 	JoinVote() *JoinVote
 	GetVoteMeta() *GetVoteMeta
 	SetVoteMeta() *SetVoteMeta
@@ -134,102 +124,98 @@ type castTransitFrame struct {
 	tf TransitFrame
 }
 
+func (m *castTransitFrame) Broadcast() *Broadcast {
+	return &Broadcast{TransitFrame: m.tf}
+}
+
 func (m *castTransitFrame) Hello() *Hello {
-	return value.Cast[*Hello](m.tf)
+	return &Hello{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) ServerTime() *ServerTime {
-	return value.Cast[*ServerTime](m.tf)
-}
-
-func (m *castTransitFrame) ChannelFrame() ChannelFrame {
-	return value.Cast[ChannelFrame](m.tf)
+	return &ServerTime{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) JoinChannel() *JoinChannel {
-	return value.Cast[*JoinChannel](m.tf)
+	return &JoinChannel{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) GetChannelMeta() *GetChannelMeta {
-	return value.Cast[*GetChannelMeta](m.tf)
+	return &GetChannelMeta{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) SetChannelMeta() *SetChannelMeta {
-	return value.Cast[*SetChannelMeta](m.tf)
+	return &SetChannelMeta{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) ChannelMessage() *ChannelMessage {
-	return value.Cast[*ChannelMessage](m.tf)
+	return &ChannelMessage{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) ChannelOwnerMessage() *ChannelOwnerMessage {
-	return value.Cast[*ChannelOwnerMessage](m.tf)
+	return &ChannelOwnerMessage{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) ChannelCount() *ChannelCount {
-	return value.Cast[*ChannelCount](m.tf)
+	return &ChannelCount{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) LeaveChannel() *LeaveChannel {
-	return value.Cast[*LeaveChannel](m.tf)
+	return &LeaveChannel{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) CloseChannel() *CloseChannel {
-	return value.Cast[*CloseChannel](m.tf)
-}
-
-func (m *castTransitFrame) VoteFrame() VoteFrame {
-	return value.Cast[VoteFrame](m.tf)
+	return &CloseChannel{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) JoinVote() *JoinVote {
-	return value.Cast[*JoinVote](m.tf)
+	return &JoinVote{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) GetVoteMeta() *GetVoteMeta {
-	return value.Cast[*GetVoteMeta](m.tf)
+	return &GetVoteMeta{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) SetVoteMeta() *SetVoteMeta {
-	return value.Cast[*SetVoteMeta](m.tf)
+	return &SetVoteMeta{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) VoteMessage() *VoteMessage {
-	return value.Cast[*VoteMessage](m.tf)
+	return &VoteMessage{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) VoteOwnerMessage() *VoteOwnerMessage {
-	return value.Cast[*VoteOwnerMessage](m.tf)
+	return &VoteOwnerMessage{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) VoteCount() *VoteCount {
-	return value.Cast[*VoteCount](m.tf)
+	return &VoteCount{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) VoteSelect() *VoteSelect {
-	return value.Cast[*VoteSelect](m.tf)
+	return &VoteSelect{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) VoteStatus() *VoteStatus {
-	return value.Cast[*VoteStatus](m.tf)
+	return &VoteStatus{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) LeaveVote() *LeaveVote {
-	return value.Cast[*LeaveVote](m.tf)
+	return &LeaveVote{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) CloseVote() *CloseVote {
-	return value.Cast[*CloseVote](m.tf)
+	return &CloseVote{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) GetSessionMeta() *GetSessionMeta {
-	return value.Cast[*GetSessionMeta](m.tf)
+	return &GetSessionMeta{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) SetSessionMeta() *SetSessionMeta {
-	return value.Cast[*SetSessionMeta](m.tf)
+	return &SetSessionMeta{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) SessionMessage() *SessionMessage {
-	return value.Cast[*SessionMessage](m.tf)
+	return &SessionMessage{TransitFrame: m.tf}
 }

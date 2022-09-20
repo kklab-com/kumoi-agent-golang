@@ -6,18 +6,29 @@ import (
 )
 
 type GetChannelMeta struct {
-	channelTransitFrame
-	Data      *base.Metadata
-	Name      string
-	CreatedAt int64
-	Skill     *omega.Skill
+	TransitFrame
 }
 
-func (c *GetChannelMeta) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.Data = tf.GetGetChannelMeta().GetData()
-	c.Name = tf.GetGetChannelMeta().GetName()
-	c.CreatedAt = tf.GetGetChannelMeta().GetCreatedAt()
-	c.Skill = tf.GetGetChannelMeta().GetSkill()
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *GetChannelMeta) GetChannelId() string {
+	return c.BaseTransitFrame().GetGetChannelMeta().GetChannelId()
+}
+
+func (c *GetChannelMeta) GetOffset() int64 {
+	return c.BaseTransitFrame().GetGetChannelMeta().GetOffset()
+}
+
+func (c *GetChannelMeta) GetName() string {
+	return c.BaseTransitFrame().GetGetChannelMeta().GetName()
+}
+
+func (c *GetChannelMeta) GetCreatedAt() int64 {
+	return c.BaseTransitFrame().GetGetChannelMeta().GetCreatedAt()
+}
+
+func (c *GetChannelMeta) GetData() *base.Metadata {
+	return c.BaseTransitFrame().GetGetChannelMeta().GetData()
+}
+
+func (c *GetChannelMeta) GetSkill() *omega.Skill {
+	return c.BaseTransitFrame().GetGetChannelMeta().GetSkill()
 }

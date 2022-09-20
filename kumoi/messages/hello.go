@@ -1,18 +1,17 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type Hello struct {
-	transitFrame
-	SessionId   string
-	Subject     string
-	SubjectName string
+	TransitFrame
 }
 
-func (c *Hello) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.SessionId = tf.GetHello().GetSessionId()
-	c.Subject = tf.GetHello().GetSubject()
-	c.SubjectName = tf.GetHello().GetSubjectName()
-	c.transitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *Hello) GetSessionId() string {
+	return c.BaseTransitFrame().GetHello().GetSessionId()
+}
+
+func (c *Hello) GetSubject() string {
+	return c.BaseTransitFrame().GetHello().GetSubject()
+}
+
+func (c *Hello) GetSubjectName() string {
+	return c.BaseTransitFrame().GetHello().GetSubjectName()
 }

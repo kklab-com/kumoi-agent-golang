@@ -1,25 +1,15 @@
 package messages
 
-import (
-	omega "github.com/kklab-com/kumoi-protobuf-golang"
-)
+import omega "github.com/kklab-com/kumoi-protobuf-golang"
 
 type VoteCount struct {
-	voteTransitFrame
-	VoteOptions []VoteOption
+	TransitFrame
 }
 
-func (c *VoteCount) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.VoteOptions = nil
-	for _, vto := range tf.GetVoteCount().GetVoteOptions() {
-		c.VoteOptions = append(c.VoteOptions, VoteOption{
-			Id:          vto.GetId(),
-			Name:        vto.GetName(),
-			Count:       vto.GetCount(),
-			SubjectList: vto.GetSubjectList(),
-		})
-	}
+func (x *VoteCount) GetVoteId() string {
+	return x.BaseTransitFrame().GetVoteCount().GetVoteId()
+}
 
-	c.voteTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (x *VoteCount) GetVoteOptions() []*omega.Vote_Option {
+	return x.BaseTransitFrame().GetVoteCount().GetVoteOptions()
 }

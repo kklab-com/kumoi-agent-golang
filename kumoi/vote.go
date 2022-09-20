@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	concurrent "github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base"
@@ -51,7 +50,7 @@ func (v *VoteInfo) Join(key string) *Vote {
 				info:    &nv,
 				onLeave: func() {},
 				onClose: func() {},
-				watch:   func(msg messages.VoteFrame) {},
+				watch:   func(msg messages.TransitFrame) {},
 			}
 
 			vt.info.name = jv.GetName()
@@ -73,8 +72,8 @@ func (v *VoteInfo) Join(key string) *Vote {
 	return nil
 }
 
-func (v *VoteInfo) Close(key string) concurrent.Future {
-	return v.omega.agent.CloseVote(v.VoteId(), key)
+func (v *VoteInfo) Close(key string) SendFuture[*messages.CloseVote] {
+	return wrapSendFuture[*messages.CloseVote](v.omega.agent.CloseVote(v.VoteId(), key))
 }
 
 type Vote struct {
@@ -82,7 +81,11 @@ type Vote struct {
 	omega            *Omega
 	info             *VoteInfo
 	onLeave, onClose func()
-	watch            func(msg messages.VoteFrame)
+	watch            func(msg messages.TransitFrame)
+}
+
+func (v *Vote) watchId() string {
+	return fmt.Sprintf("vt-watch-%s", v.info.VoteId())
 }
 
 func (v *Vote) Id() string {
@@ -130,7 +133,7 @@ func (v *Vote) SendOwnerMessage(msg string) SendFuture[*messages.VoteOwnerMessag
 	return wrapSendFuture[*messages.VoteOwnerMessage](v.omega.Agent().VoteOwnerMessage(v.Info().voteId, msg))
 }
 
-func (v *Vote) GetCount() SendFuture[*messages.VoteCount] {
+func (v *Vote) Count() SendFuture[*messages.VoteCount] {
 	return wrapSendFuture[*messages.VoteCount](v.omega.Agent().VoteCount(v.Info().voteId))
 }
 
@@ -140,7 +143,7 @@ func (v *Vote) Select(voteOptionId string) bool {
 		return false
 	}
 
-	return !f.Get().(*omega.TransitFrame).GetVoteSelect().Deny
+	return !f.Get().GetVoteSelect().Deny
 }
 
 func (v *Vote) Status(statusType omega.Vote_Status) SendFuture[*messages.VoteStatus] {
@@ -157,13 +160,13 @@ func (v *Vote) OnClose(f func()) *Vote {
 	return v
 }
 
-func (v *Vote) Watch(f func(msg messages.VoteFrame)) *Vote {
+func (v *Vote) Watch(f func(msg messages.TransitFrame)) *Vote {
 	v.watch = f
 	return v
 }
 
 func (v *Vote) init() {
-	v.omega.onMessageHandlers.Store(v.Id(), func(tf *omega.TransitFrame) {
+	v.omega.onMessageHandlers.Store(v.watchId(), func(tf *omega.TransitFrame) {
 		if tf.GetClass() == omega.TransitFrame_ClassError {
 			return
 		}
@@ -211,7 +214,7 @@ func (v *Vote) init() {
 					v.info.voteOptions = vtos
 				}
 
-				if vtf := getParsedTransitFrameFromBaseTransitFrame(tf).Cast().VoteFrame(); vtf != nil {
+				if vtf := getParsedTransitFrameFromBaseTransitFrame(tf); vtf != nil {
 					v.watch(vtf)
 				} else {
 					kklogger.WarnJ("kumoi:Vote.init", fmt.Sprintf("%s should not be here", tf.String()))
@@ -248,7 +251,7 @@ func (v *Vote) init() {
 }
 
 func (v *Vote) deInit() {
-	v.omega.onMessageHandlers.Delete(v.Id())
+	v.omega.onMessageHandlers.Delete(v.watchId())
 }
 
 type VoteOption struct {

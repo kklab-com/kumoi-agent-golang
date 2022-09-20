@@ -6,26 +6,37 @@ import (
 )
 
 type JoinChannel struct {
-	channelTransitFrame
-	Name            string
-	Role            string
-	SessionId       string
-	Subject         string
-	SubjectName     string
-	SessionMetadata *base.Metadata
-	RoleIndicator   omega.Role
-	Skill           *omega.Skill
+	TransitFrame
 }
 
-func (c *JoinChannel) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.Name = tf.GetJoinChannel().GetName()
-	c.Role = tf.GetJoinChannel().GetRole()
-	c.SessionId = tf.GetJoinChannel().GetSessionId()
-	c.Subject = tf.GetJoinChannel().GetSubject()
-	c.SubjectName = tf.GetJoinChannel().GetSubjectName()
-	c.SessionMetadata = tf.GetJoinChannel().GetSessionMetadata()
-	c.RoleIndicator = tf.GetJoinChannel().GetRoleIndicator()
-	c.Skill = tf.GetJoinChannel().GetSkill()
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *JoinChannel) GetName() string {
+	return c.BaseTransitFrame().GetJoinChannel().GetName()
+}
+
+func (c *JoinChannel) GetRole() string {
+	return c.BaseTransitFrame().GetJoinChannel().GetRole()
+}
+
+func (c *JoinChannel) GetSessionId() string {
+	return c.BaseTransitFrame().GetJoinChannel().GetSessionId()
+}
+
+func (c *JoinChannel) GetSubject() string {
+	return c.BaseTransitFrame().GetJoinChannel().GetSubject()
+}
+
+func (c *JoinChannel) GetSubjectName() string {
+	return c.BaseTransitFrame().GetJoinChannel().GetSubjectName()
+}
+
+func (c *JoinChannel) GetSessionMetadata() *base.Metadata {
+	return c.BaseTransitFrame().GetJoinChannel().GetSessionMetadata()
+}
+
+func (c *JoinChannel) GetRoleIndicator() omega.Role {
+	return c.BaseTransitFrame().GetJoinChannel().GetRoleIndicator()
+}
+
+func (c *JoinChannel) GetSkill() *omega.Skill {
+	return c.BaseTransitFrame().GetJoinChannel().GetSkill()
 }

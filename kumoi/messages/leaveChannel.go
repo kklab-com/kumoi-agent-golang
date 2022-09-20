@@ -1,14 +1,17 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type LeaveChannel struct {
-	channelTransitFrame
-	SessionId string
+	TransitFrame
 }
 
-func (c *LeaveChannel) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.SessionId = tf.GetLeaveChannel().GetSessionId()
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *LeaveChannel) GetSessionId() string {
+	return c.BaseTransitFrame().GetLeaveChannel().GetSessionId()
+}
+
+func (c *LeaveChannel) GetChannelId() string {
+	return c.BaseTransitFrame().GetLeaveChannel().GetChannelId()
+}
+
+func (c *LeaveChannel) GetOffset() int64 {
+	return c.BaseTransitFrame().GetLeaveChannel().GetOffset()
 }

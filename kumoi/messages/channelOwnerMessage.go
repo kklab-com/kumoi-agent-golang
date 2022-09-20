@@ -6,22 +6,37 @@ import (
 )
 
 type ChannelOwnerMessage struct {
-	channelTransitFrame
-	FromSession string
-	Message     string
-	Subject     string
-	SubjectName string
-	Metadata    *base.Metadata
-	Skill       *omega.Skill
+	TransitFrame
 }
 
-func (c *ChannelOwnerMessage) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.FromSession = tf.GetChannelOwnerMessage().GetFromSession()
-	c.Message = tf.GetChannelOwnerMessage().GetMessage()
-	c.Subject = tf.GetChannelOwnerMessage().GetSubject()
-	c.SubjectName = tf.GetChannelOwnerMessage().GetSubjectName()
-	c.Metadata = tf.GetChannelOwnerMessage().GetMetadata()
-	c.Skill = tf.GetChannelOwnerMessage().GetSkill()
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *ChannelOwnerMessage) GetChannelId() string {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetChannelId()
+}
+
+func (c *ChannelOwnerMessage) GetOffset() int64 {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetOffset()
+}
+
+func (c *ChannelOwnerMessage) GetFromSession() string {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetFromSession()
+}
+
+func (c *ChannelOwnerMessage) GetMessage() string {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetMessage()
+}
+
+func (c *ChannelOwnerMessage) GetSubject() string {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetSubject()
+}
+
+func (c *ChannelOwnerMessage) GetSubjectName() string {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetSubjectName()
+}
+
+func (c *ChannelOwnerMessage) GetMetadata() *base.Metadata {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetMetadata()
+}
+
+func (c *ChannelOwnerMessage) GetSkill() *omega.Skill {
+	return c.BaseTransitFrame().GetChannelOwnerMessage().GetSkill()
 }

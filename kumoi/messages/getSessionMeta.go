@@ -2,22 +2,24 @@ package messages
 
 import (
 	"github.com/kklab-com/kumoi-agent-golang/base"
-	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
 
 type GetSessionMeta struct {
-	transitFrame
-	SessionId string
-	Subject   string
-	Name      string
-	Data      *base.Metadata
+	TransitFrame
 }
 
-func (c *GetSessionMeta) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.SessionId = tf.GetGetSessionMeta().GetSessionId()
-	c.Subject = tf.GetGetSessionMeta().GetSubject()
-	c.Name = tf.GetGetSessionMeta().GetName()
-	c.Data = tf.GetGetSessionMeta().GetData()
-	c.transitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *GetSessionMeta) GetSessionId() string {
+	return c.BaseTransitFrame().GetGetSessionMeta().GetSessionId()
+}
+
+func (c *GetSessionMeta) GetSubject() string {
+	return c.BaseTransitFrame().GetGetSessionMeta().GetSubject()
+}
+
+func (c *GetSessionMeta) GetName() string {
+	return c.BaseTransitFrame().GetGetSessionMeta().GetName()
+}
+
+func (c *GetSessionMeta) GetData() *base.Metadata {
+	return c.BaseTransitFrame().GetGetSessionMeta().GetData()
 }

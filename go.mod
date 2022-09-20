@@ -4,17 +4,17 @@ go 1.18
 
 require (
 	github.com/golang/protobuf v1.5.2
-	github.com/kklab-com/gone-core v1.1.9
-	github.com/kklab-com/gone-http v1.1.9
+	github.com/kklab-com/gone-core v1.2.2
+	github.com/kklab-com/gone-http v1.2.2
 	github.com/kklab-com/gone-httpheadername v0.0.0-20210329135429-db3f484c9117
 	github.com/kklab-com/gone-httpstatus v0.0.0-20210329135420-5f09bea125ca
-	github.com/kklab-com/gone-websocket v1.1.9
+	github.com/kklab-com/gone-websocket v1.2.2
 	github.com/kklab-com/goth-bytebuf v1.0.1
-	github.com/kklab-com/goth-concurrent v1.1.0
+	github.com/kklab-com/goth-concurrent v1.2.0
 	github.com/kklab-com/goth-kklogger v1.0.1
 	github.com/kklab-com/goth-kkutil v1.3.3
 	github.com/kklab-com/goth-panic v1.0.3
-	github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20220615035929-b4c574bbf29a
+	github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20220917095424-fb3b3a93e405
 	github.com/pkg/errors v0.8.0
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/protobuf v1.27.1
@@ -47,7 +47,7 @@ require (
 	github.com/tdewolff/minify/v2 v2.7.4 // indirect
 	github.com/tdewolff/parse/v2 v2.4.2 // indirect
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c // indirect
-	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
+	golang.org/x/sys v0.0.0-20220915200043-7b5979e65e41 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

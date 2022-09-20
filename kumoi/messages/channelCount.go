@@ -1,18 +1,21 @@
 package messages
 
-import omega "github.com/kklab-com/kumoi-protobuf-golang"
-
 type ChannelCount struct {
-	channelTransitFrame
-	OwnerCount        int32
-	ParticipatorCount int32
-	Count             int32
+	TransitFrame
 }
 
-func (c *ChannelCount) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.OwnerCount = tf.GetChannelCount().GetOwnerCount()
-	c.ParticipatorCount = tf.GetChannelCount().GetParticipatorCount()
-	c.Count = tf.GetChannelCount().GetCount()
-	c.channelTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (c *ChannelCount) GetChannelId() string {
+	return c.BaseTransitFrame().GetChannelCount().GetChannelId()
+}
+
+func (c *ChannelCount) GetOwnerCount() int32 {
+	return c.BaseTransitFrame().GetChannelCount().GetOwnerCount()
+}
+
+func (c *ChannelCount) GetParticipatorCount() int32 {
+	return c.BaseTransitFrame().GetChannelCount().GetParticipatorCount()
+}
+
+func (c *ChannelCount) GetCount() int32 {
+	return c.BaseTransitFrame().GetChannelCount().GetCount()
 }

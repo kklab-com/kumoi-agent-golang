@@ -1,20 +1,25 @@
 package messages
 
-import (
-	omega "github.com/kklab-com/kumoi-protobuf-golang"
-)
-
 type VoteSelect struct {
-	voteTransitFrame
-	SessionId    string
-	Subject      string
-	VoteOptionId string
+	TransitFrame
 }
 
-func (c *VoteSelect) ParseTransitFrame(tf *omega.TransitFrame) {
-	c.SessionId = tf.GetVoteSelect().GetSessionId()
-	c.Subject = tf.GetVoteSelect().GetSubject()
-	c.VoteOptionId = tf.GetVoteSelect().GetVoteOptionId()
-	c.voteTransitFrame.ParseTransitFrame(tf)
-	c.transitFrame.setCast(c)
+func (x *VoteSelect) GetVoteId() string {
+	return x.BaseTransitFrame().GetVoteSelect().GetVoteId()
+}
+
+func (x *VoteSelect) GetSessionId() string {
+	return x.BaseTransitFrame().GetVoteSelect().GetSessionId()
+}
+
+func (x *VoteSelect) GetSubject() string {
+	return x.BaseTransitFrame().GetVoteSelect().GetSubject()
+}
+
+func (x *VoteSelect) GetVoteOptionId() string {
+	return x.BaseTransitFrame().GetVoteSelect().GetVoteOptionId()
+}
+
+func (x *VoteSelect) GetDeny() bool {
+	return x.BaseTransitFrame().GetVoteSelect().GetDeny()
 }

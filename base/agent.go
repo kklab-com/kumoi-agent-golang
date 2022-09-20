@@ -9,28 +9,11 @@ import (
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
 )
 
-type AgentFuture interface {
-	concurrent.Future
-	Agent() Agent
-}
-
-type DefaultAgentFuture struct {
-	concurrent.Future
-}
-
-func (f *DefaultAgentFuture) Agent() Agent {
-	if v := f.Get(); v != nil {
-		return v.(*agent)
-	}
-
-	return nil
-}
-
 type Agent interface {
 	Close() concurrent.Future
 	IsClosed() bool
 	Session() Session
-	GetRemoteSession(sessionId string) RemoteSessionFuture
+	GetRemoteSession(sessionId string) concurrent.CastFuture[RemoteSession]
 	OnClosed(f func())
 	OnMessage(f func(tf *omega.TransitFrame))
 	OnSessionMessage(f func(tf *omega.TransitFrame))
@@ -41,7 +24,7 @@ type Agent interface {
 	OnNotification(f func(tf *omega.TransitFrame))
 	OnNotificationReplay(f func(tf *omega.TransitFrame))
 	OnError(f func(err error))
-	Ping() concurrent.Future
+	Ping() SendFuture
 	OnBroadcast(f func(tf *omega.TransitFrame))
 	Broadcast(msg string) SendFuture
 	Hello() SendFuture
@@ -70,8 +53,8 @@ type Agent interface {
 	SetSessionMeta(metadata *Metadata) SendFuture
 	SessionMessage(sessionId string, message string) SendFuture
 	SessionsMessage(sessionIds []string, message string) SendFuture
-	CreateChannel(createChannel apirequest.CreateChannel) CastFuture[*apiresponse.CreateChannel]
-	CreateVote(createVote apirequest.CreateVote) CastFuture[*apiresponse.CreateVote]
+	CreateChannel(createChannel apirequest.CreateChannel) concurrent.CastFuture[*apiresponse.CreateChannel]
+	CreateVote(createVote apirequest.CreateVote) concurrent.CastFuture[*apiresponse.CreateVote]
 }
 
 type agent struct {
@@ -188,7 +171,7 @@ func (a *agent) Session() Session {
 	return a.session
 }
 
-func (a *agent) GetRemoteSession(sessionId string) RemoteSessionFuture {
+func (a *agent) GetRemoteSession(sessionId string) concurrent.CastFuture[RemoteSession] {
 	return a.session.GetRemoteSession(sessionId)
 }
 
@@ -232,7 +215,7 @@ func (a *agent) OnError(f func(err error)) {
 	a.onErrorHandler = f
 }
 
-func (a *agent) Ping() concurrent.Future {
+func (a *agent) Ping() SendFuture {
 	return a.session.Ping()
 }
 
@@ -360,33 +343,33 @@ func (a *agent) SessionsMessage(sessionIds []string, message string) SendFuture 
 	return a.session.SendRequest(&omega.TransitFrame_SessionsMessage{SessionsMessage: &omega.SessionsMessage{ToSessions: sessionIds, Message: message}})
 }
 
-func (a *agent) CreateChannel(createChannel apirequest.CreateChannel) CastFuture[*apiresponse.CreateChannel] {
+func (a *agent) CreateChannel(createChannel apirequest.CreateChannel) concurrent.CastFuture[*apiresponse.CreateChannel] {
 	return a.Session().GetEngine().createChannel(createChannel)
 }
 
-func (a *agent) CreateVote(createVote apirequest.CreateVote) CastFuture[*apiresponse.CreateVote] {
+func (a *agent) CreateVote(createVote apirequest.CreateVote) concurrent.CastFuture[*apiresponse.CreateVote] {
 	return a.Session().GetEngine().createVote(createVote)
 }
 
 type AgentBuilder struct {
-	engine *Engine
+	conf *Config
 }
 
-func NewAgentBuilder(engine *Engine) *AgentBuilder {
-	if engine == nil {
+func NewAgentBuilder(conf *Config) *AgentBuilder {
+	if conf == nil {
 		return nil
 	}
 
-	return &AgentBuilder{engine: engine}
+	return &AgentBuilder{conf: conf}
 }
 
-func (b *AgentBuilder) Connect() AgentFuture {
-	if b.engine == nil || b.engine.Config == nil {
-		return &DefaultAgentFuture{Future: concurrent.NewFailedFuture(ErrConfigIsEmpty)}
+func (b *AgentBuilder) Connect() concurrent.CastFuture[Agent] {
+	if b.conf == nil {
+		return concurrent.WrapCastFuture[Agent](concurrent.NewFailedFuture(ErrConfigIsEmpty))
 	}
 
-	af := &DefaultAgentFuture{Future: concurrent.NewFuture()}
-	b.engine.connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	af := concurrent.NewCastFuture[Agent]()
+	NewEngine(b.conf).connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			af.Completable().Complete(NewAgent(f.Get().(Session)))
 		} else if f.IsCancelled() {
