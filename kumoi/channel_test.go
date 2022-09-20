@@ -1,8 +1,10 @@
 package kumoi
 
 import (
+	"fmt"
 	"math"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -90,4 +92,189 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	assert.Nil(t, cp.Next())
 	assert.True(t, closed)
 	assert.True(t, omg.Close().Await().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestOmega_ChannelMultiSession(t *testing.T) {
+	nCount := int32(0)
+	connectWG := concurrent.WaitGroup{}
+	omg := NewOmegaBuilder(conf).Connect().Get()
+	och := omg.CreateChannel(apirequest.CreateChannel{}).Join()
+	if och == nil {
+		assert.Fail(t, "create ch nil")
+		return
+	}
+
+	defer func() {
+		och.Close().Await()
+		omg.Close().Await()
+	}()
+
+	thread := 50
+	times := 20
+
+	connectWG.Add(thread)
+	joinWG := concurrent.WaitGroup{}
+	joinWG.Add(thread)
+	routineWG := concurrent.WaitGroup{}
+	routineWG.Add(thread)
+
+	go func() {
+		<-time.After(time.Second * 5)
+		if c := joinWG.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("joinWG %d", c))
+		}
+
+		joinWG.Reset()
+	}()
+
+	for i := 0; i < thread; i++ {
+		go func(threadIndex int) {
+			tog := NewOmegaBuilder(conf).Connect().Get()
+			ch := tog.Channel(och.Id()).Join("")
+			joinWG.Done()
+			joinWG.Wait()
+			if ch == nil {
+				assert.Fail(t, "get ch nil")
+				return
+			}
+
+			on := int32(0)
+			wrd := concurrent.WaitGroup{}
+			wrd.Add(thread * times)
+
+			go func(i int) {
+				<-time.After(time.Second * 30)
+				if c := wrd.Remain(); c > 0 {
+					assert.Fail(t, fmt.Sprintf("wrd %d", c))
+					println(fmt.Sprintf("%d timeout %d", threadIndex, on))
+				}
+			}(threadIndex)
+
+			ch.Watch(func(msg messages.TransitFrame) {
+				if msg.Cast().ChannelMessage() != nil {
+					atomic.AddInt32(&on, 1)
+					atomic.AddInt32(&nCount, 1)
+					wrd.Done()
+				}
+			})
+
+			for ir := 0; ir < times; ir++ {
+				time.Sleep(time.Millisecond * 100)
+				if !ch.SendMessage(fmt.Sprintf("%d !!!", ir), nil).AwaitTimeout(Timeout * 10).IsSuccess() {
+					assert.Fail(t, "send fail")
+				}
+
+				if threadIndex == 0 {
+					println(fmt.Sprintf("round %d done", ir+1))
+				}
+			}
+
+			wrd.Wait()
+			routineWG.Done()
+			routineWG.Wait()
+			tog.Close().Await()
+			connectWG.Done()
+		}(i)
+	}
+
+	go func() {
+		<-time.After(time.Second * 30)
+		if c := connectWG.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("connectWG %d burst", c))
+		}
+
+		connectWG.Reset()
+	}()
+
+	connectWG.Wait()
+	assert.Equal(t, int32(thread*thread*times), nCount)
+	println(nCount)
+}
+
+func TestOmega_ChannelMultiChannelCount(t *testing.T) {
+	bwg := concurrent.WaitGroup{}
+	omg := NewOmegaBuilder(conf).Connect().Get()
+	och := omg.CreateChannel(apirequest.CreateChannel{}).Join()
+	if och == nil {
+		assert.Fail(t, "create ch nil")
+		return
+	}
+
+	thread := 50
+	times := 50
+	bwg.Add(thread)
+	wjd := concurrent.WaitGroup{}
+	wjd.Add(thread)
+	wcd := concurrent.WaitGroup{}
+	wcd.Add(thread)
+
+	go func() {
+		<-time.After(time.Second * 10)
+		if c := wjd.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("fail all connect, wjd %d", c))
+		}
+
+		wjd.Reset()
+	}()
+
+	for i := 0; i < thread; i++ {
+		go func(ii int) {
+			og := NewOmegaBuilder(conf).Connect().Get()
+			ch := og.Channel(och.Id()).Join("")
+			println(fmt.Sprintf("%s connected", og.Session().GetId()))
+			wjd.Done()
+			wjd.Wait()
+			println("all connected, go")
+			if ch == nil {
+				assert.Fail(t, "get ch nil")
+				return
+			}
+
+			on := int32(0)
+			wrd := concurrent.WaitGroup{}
+			wrd.Add(times)
+
+			go func(i int) {
+				<-time.After(time.Second * 10)
+				if c := wrd.Remain(); c > 0 {
+					assert.Fail(t, fmt.Sprintf("wrd %d", c))
+					println(fmt.Sprintf("%d timeout %d", i, on))
+				}
+			}(ii)
+
+			og.OnMessageHandler = func(tf messages.TransitFrame) {
+				if tf.Cast().ChannelCount() != nil {
+					atomic.AddInt32(&on, 1)
+					wrd.Done()
+				}
+			}
+
+			<-time.After(time.Second * 3)
+			for ir := 0; ir < times; ir++ {
+				assert.Equal(t, thread+1, int(ch.Count().TransitFrame().GetCount()))
+				if ii == 0 {
+					println(fmt.Sprintf("round %d done", ir+1))
+				}
+			}
+
+			wrd.Wait()
+			wcd.Done()
+			wcd.Wait()
+			og.Close().Await()
+			bwg.Done()
+		}(i)
+	}
+
+	go func() {
+		<-time.After(time.Second * 60)
+		if c := bwg.Remain(); c > 0 {
+			assert.Fail(t, fmt.Sprintf("bwg %d burst", c))
+		}
+
+		bwg.Reset()
+	}()
+
+	bwg.Wait()
+	och.Close()
+	omg.Close().Await()
 }
