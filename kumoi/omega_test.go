@@ -145,18 +145,17 @@ func TestOmegaWriteOnClosed(t *testing.T) {
 }
 
 func TestOmega_MultiVoteChannel(t *testing.T) {
-	tCount := int32(0)
 	nCount := int32(0)
 	bwg := concurrent.WaitGroup{}
 	ng := NewOmegaBuilder(conf).Connect().Get()
-	och := ng.CreateChannel(apirequest.CreateChannel{Name: "TestOmega_MultiVoteChannel_C"}).Join()
+	och := ng.CreateChannel(apirequest.CreateChannel{Name: fmt.Sprintf("%s_C", t.Name())}).Join()
 	if och == nil {
 		assert.Fail(t, "create ch nil")
 		return
 	}
 
 	ovt := ng.CreateVote(apirequest.CreateVote{
-		Name:              "TestOmega_MultiVoteChannel_V",
+		Name:              fmt.Sprintf("%s_V", t.Name()),
 		VoteOptions:       []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
 		IdleTimeoutSecond: 300,
 	}).Join()
@@ -201,14 +200,6 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 			wjd.Done()
 			wjd.Wait()
 			on := int32(0)
-			og.Agent().Session().OnRead(func(tf *omega.TransitFrame) {
-				if tf.GetClass() == omega.TransitFrame_ClassError {
-					println(tf.Error())
-				}
-
-				atomic.AddInt32(&tCount, 1)
-			})
-
 			wrd := concurrent.WaitGroup{}
 			wrd.Add(thread * times)
 
@@ -220,10 +211,12 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 				}
 			}(ii)
 
-			og.Agent().OnNotification(func(tf *omega.TransitFrame) {
-				atomic.AddInt32(&on, 1)
-				atomic.AddInt32(&nCount, 1)
-				wrd.Done()
+			ch.Watch(func(msg messages.TransitFrame) {
+				if _, ok := msg.(*messages.ChannelMessage); ok {
+					atomic.AddInt32(&on, 1)
+					atomic.AddInt32(&nCount, 1)
+					wrd.Done()
+				}
 			})
 
 			for ir := 0; ir < times; ir++ {
@@ -259,9 +252,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 	}()
 
 	bwg.Wait()
-	assert.Equal(t, int32(thread*((thread+2)*times)), tCount)
 	assert.Equal(t, int32(thread*thread*times), nCount)
-	println(tCount)
 	println(nCount)
 	<-time.After(time.Second)
 	vtc := ovt.Count().TransitFrame()
