@@ -9,7 +9,6 @@ on:
     branches: [ master ]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,7 +22,16 @@ jobs:
       - name: Build
         run: go build -v ./...
 
+      - name: Test master
+        if: github.ref == 'refs/heads/master'
+        env:
+          TEST_APP_ID: ${{ secrets.TEST_APP_ID }}
+          TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
+        run: go test -v ./...
+
       - name: Test
+        if: github.ref != 'refs/heads/master'
         env:
           TEST_APP_ID: ${{ secrets.TEST_APP_ID }}
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
