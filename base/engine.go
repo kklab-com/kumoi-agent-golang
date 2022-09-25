@@ -89,7 +89,7 @@ func (e *Engine) discovery() {
 		json.Unmarshal(buf.EmptyByteBuf().WriteReader(resp.Body).Bytes(), &rm)
 		resp.Body.Close()
 		if str, f := rm["node_api_uri"]; f {
-			e.APIUri = fmt.Sprintf("%s?s.l=%s&s.v=%s", str, SDKLanguage(), SDKVersion())
+			e.APIUri = str
 		}
 
 		if str, f := rm["node_bs_uri"]; f {
