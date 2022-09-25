@@ -1,6 +1,7 @@
 package base
 
 import (
+	"runtime/debug"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,6 +12,27 @@ var ErrConfigIsEmpty = errors.Errorf("config is empty")
 var ErrTransitTimeout = errors.Errorf("request transit timeout")
 var ErrSessionNotFound = errors.Errorf("session not found")
 var ErrUnexpectError = errors.Errorf("unexcept error")
+
+var sdkVersion string
+var sdkLang = "go"
+
+func init() {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, module := range info.Deps {
+			if module.Path == "github.com/kklab-com/kumoi-agent-golang" {
+				sdkVersion = module.Version
+			}
+		}
+	}
+}
+
+func SDKVersion() string {
+	return sdkVersion
+}
+
+func SDKLanguage() string {
+	return sdkLang
+}
 
 type Metadata = structpb.Struct
 
