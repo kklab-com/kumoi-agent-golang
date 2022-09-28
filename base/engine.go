@@ -110,7 +110,7 @@ func (e *Engine) checkResource() bool {
 	return true
 }
 
-func (e *Engine) connect() concurrent.CastFuture[Session] {
+func (e *Engine) Connect() concurrent.CastFuture[Session] {
 	if !e.checkResource() {
 		return concurrent.WrapCastFuture[Session](concurrent.NewFailedFuture(ErrCantGetServiceResource))
 	}

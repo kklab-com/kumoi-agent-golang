@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSessionEstablish(t *testing.T) {
-	cf := engine.connect()
+	cf := engine.Connect()
 	assert.NotNil(t, cf.GetTimeout(Timeout))
 	assert.NotNil(t, cf.Get())
 	s := cf.Get()
@@ -43,7 +43,7 @@ func TestSessionEstablish(t *testing.T) {
 }
 
 func TestSessionOperation(t *testing.T) {
-	sf := engine.connect()
+	sf := engine.Connect()
 	assert.NotEmpty(t, sf.Get())
 	ss := sf.Get()
 	ssp := ss.Ping()
@@ -63,8 +63,8 @@ func TestSessionOperation(t *testing.T) {
 
 func TestSessionMessage(t *testing.T) {
 	rmsg := "test message"
-	rs := engine.connect().Get()
-	s := engine.connect().Get()
+	rs := engine.Connect().Get()
+	s := engine.Connect().Get()
 	assert.NotEmpty(t, s)
 	assert.False(t, s.IsClosed())
 	assert.NotEmpty(t, s.GetId())
@@ -102,9 +102,9 @@ func TestSessionMessage(t *testing.T) {
 }
 
 func TestSessionsMessage(t *testing.T) {
-	rs1 := engine.connect().Get()
-	rs2 := engine.connect().Get()
-	s := engine.connect().Get()
+	rs1 := engine.Connect().Get()
+	rs2 := engine.Connect().Get()
+	s := engine.Connect().Get()
 	wg := concurrent.WaitGroup{}
 	f := concurrent.NewFuture()
 	wg.Add(300)
