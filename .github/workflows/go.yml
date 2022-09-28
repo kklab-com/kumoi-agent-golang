@@ -10,22 +10,34 @@ on:
   schedule:
     - cron: "0 1 * * *"
 
+env:
+  GO_VERSION: 1.18
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v3
 
       - name: Build
         run: go build -v ./...
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v3
 
       - name: Test master
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/master' && github.event.schedule != '0 1 * * *'
         env:
           TEST_APP_ID: ${{ secrets.TEST_APP_ID }}
           TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
@@ -33,7 +45,41 @@ jobs:
         run: go test -v ./...
 
       - name: Test
-        if: github.ref != 'refs/heads/master'
+        if: github.ref != 'refs/heads/master' && github.event.schedule != '0 1 * * *'
+        env:
+          TEST_APP_ID: ${{ secrets.STG_TEST_APP_ID }}
+          TEST_TOKEN: ${{ secrets.STG_TEST_TOKEN }}
+          TEST_DOMAIN: ${{ secrets.STG_TEST_DOMAIN }}
+        run: go test -v ./...
+  test_schedule_prd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v3
+
+      - name: test prd
+        if: github.event.schedule == '0 1 * * *'
+        env:
+          TEST_APP_ID: ${{ secrets.TEST_APP_ID }}
+          TEST_TOKEN: ${{ secrets.TEST_TOKEN }}
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
+        run: go test -v ./...
+  test_schedule_stg:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v3
+
+      - name: test stg
+        if: github.event.schedule == '0 1 * * *'
         env:
           TEST_APP_ID: ${{ secrets.STG_TEST_APP_ID }}
           TEST_TOKEN: ${{ secrets.STG_TEST_TOKEN }}
