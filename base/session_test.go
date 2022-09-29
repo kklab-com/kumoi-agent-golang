@@ -1,6 +1,7 @@
 package base
 
 import (
+	"fmt"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -28,6 +29,7 @@ func TestMain(m *testing.M) {
 	conf.Domain = domain
 	engine = NewEngine(conf)
 	agentBuilder = NewAgentBuilder(conf)
+	println(fmt.Sprintf("domain %s", domain))
 	m.Run()
 }
 

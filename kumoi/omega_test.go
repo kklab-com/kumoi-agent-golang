@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 	domain = os.Getenv("TEST_DOMAIN")
 	conf = base.NewConfig(appId, token)
 	conf.Domain = domain
+	println(fmt.Sprintf("domain %s", domain))
 	m.Run()
 }
 
