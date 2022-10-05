@@ -6,11 +6,10 @@ import (
 )
 
 const (
-	DefaultServiceScheme         = "https"
-	DefaultServiceDomain         = "omega.kklab.com"
-	DefaultConnectTimeout        = 10 * time.Second
-	DefaultTransitTimeout        = 10 * time.Second
-	DefaultKeepAlivePingInterval = time.Minute
+	DefaultServiceScheme  = "https"
+	DefaultServiceDomain  = "omega.kklab.com"
+	DefaultConnectTimeout = 10 * time.Second
+	DefaultTransitTimeout = 10 * time.Second
 )
 
 type Config struct {

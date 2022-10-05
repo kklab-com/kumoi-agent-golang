@@ -341,14 +341,14 @@ func (p *channelPlayer) load(f base.SendFuture) {
 		}
 	})
 
-	if v := f.GetTimeout(base.DefaultTransitTimeout); v != nil {
+	if v := f.GetTimeout(p.omega.Agent().Session().GetEngine().Config.TransitTimeout); v != nil {
 		go func() {
-			<-time.After(base.DefaultTransitTimeout)
+			<-time.After(p.omega.Agent().Session().GetEngine().Config.TransitTimeout)
 			rcf.Completable().Fail(base.ErrTransitTimeout)
 			bwg.Reset()
 		}()
 
-		rcf.AwaitTimeout(base.DefaultTransitTimeout)
+		rcf.AwaitTimeout(p.omega.Agent().Session().GetEngine().Config.TransitTimeout)
 		bwg.Wait()
 	}
 
