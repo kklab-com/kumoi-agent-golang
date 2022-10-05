@@ -4,6 +4,10 @@ type LeaveChannel struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&LeaveChannel{})
+}
+
 func (c *LeaveChannel) GetSessionId() string {
 	return c.BaseTransitFrame().GetLeaveChannel().GetSessionId()
 }

@@ -176,17 +176,17 @@ func (o *Omega) invokeOnMessage(tf *omega.TransitFrame) {
 		return true
 	})
 
-	if ctf := getParsedTransitFrameFromBaseTransitFrame(tf); ctf != nil {
+	if ctf := messages.WrapTransitFrame(tf); ctf != nil {
 		o.OnMessageHandler(ctf)
 	}
 }
 
 func (o *Omega) invokeOnSessionMessage(tf *omega.TransitFrame) {
-	o.OnSessionMessageHandler(value.Cast[*messages.SessionMessage](getParsedTransitFrameFromBaseTransitFrame(tf)))
+	o.OnSessionMessageHandler(value.Cast[*messages.SessionMessage](messages.WrapTransitFrame(tf)))
 }
 
 func (o *Omega) invokeOnBroadcast(tf *omega.TransitFrame) {
-	o.OnBroadcastHandler(value.Cast[*messages.Broadcast](getParsedTransitFrameFromBaseTransitFrame(tf)))
+	o.OnBroadcastHandler(value.Cast[*messages.Broadcast](messages.WrapTransitFrame(tf)))
 }
 
 func (o *Omega) invokeOnClosed() {
@@ -258,63 +258,4 @@ func (b *OmegaBuilder) WithEngine(engine *base.Engine) *OmegaBuilder {
 
 type Player interface {
 	Next() messages.TransitFrame
-}
-
-func getParsedTransitFrameFromBaseTransitFrame(btf *omega.TransitFrame) (msg messages.TransitFrame) {
-	if btf == nil {
-		return nil
-	}
-
-	switch btf.GetData().(type) {
-	case *omega.TransitFrame_Broadcast:
-		msg = &messages.Broadcast{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_Hello:
-		msg = &messages.Hello{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_ServerTime:
-		msg = &messages.ServerTime{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_JoinChannel:
-		msg = &messages.JoinChannel{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_GetChannelMeta:
-		msg = &messages.GetChannelMeta{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_SetChannelMeta:
-		msg = &messages.SetChannelMeta{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_ChannelMessage:
-		msg = &messages.ChannelMessage{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_ChannelOwnerMessage:
-		msg = &messages.ChannelOwnerMessage{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_ChannelCount:
-		msg = &messages.ChannelCount{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_LeaveChannel:
-		msg = &messages.LeaveChannel{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_CloseChannel:
-		msg = &messages.CloseChannel{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_JoinVote:
-		msg = &messages.JoinVote{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_GetVoteMeta:
-		msg = &messages.GetVoteMeta{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_SetVoteMeta:
-		msg = &messages.SetVoteMeta{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_VoteMessage:
-		msg = &messages.VoteMessage{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_VoteOwnerMessage:
-		msg = &messages.VoteOwnerMessage{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_VoteCount:
-		msg = &messages.VoteCount{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_VoteSelect:
-		msg = &messages.VoteSelect{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_VoteStatus:
-		msg = &messages.VoteStatus{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_LeaveVote:
-		msg = &messages.LeaveVote{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_CloseVote:
-		msg = &messages.CloseVote{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_GetSessionMeta:
-		msg = &messages.GetSessionMeta{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_SetSessionMeta:
-		msg = &messages.SetSessionMeta{TransitFrame: messages.WrapTransitFrame(btf)}
-	case *omega.TransitFrame_SessionMessage:
-		msg = &messages.SessionMessage{TransitFrame: messages.WrapTransitFrame(btf)}
-	}
-
-	return msg
 }

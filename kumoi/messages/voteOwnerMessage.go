@@ -4,6 +4,10 @@ type VoteOwnerMessage struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&VoteOwnerMessage{})
+}
+
 func (x *VoteOwnerMessage) GetVoteId() string {
 	return x.BaseTransitFrame().GetVoteOwnerMessage().GetVoteId()
 }

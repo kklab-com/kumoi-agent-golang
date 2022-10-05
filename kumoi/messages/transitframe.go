@@ -9,6 +9,8 @@ import (
 
 var TransitMessageIdCodec = &omega.TransitMessageIDCodec{}
 
+var transitFrameMaps = map[string]reflect.Type{}
+
 type TransitFrame interface {
 	GetTransitId() uint64
 	GetClass() omega.TransitFrame_FrameClass
@@ -23,8 +25,19 @@ type TransitFrame interface {
 	Cast() CastTransitFrame
 }
 
-func WrapTransitFrame(tf *omega.TransitFrame) TransitFrame {
-	return &transitFrame{tf: tf}
+func registerTransitFrame(tf TransitFrame) {
+	transitFrameMaps[reflect.TypeOf(tf).Elem().Name()] = reflect.TypeOf(tf).Elem()
+}
+
+func WrapTransitFrame(btf *omega.TransitFrame) (msg TransitFrame) {
+	if v, f := transitFrameMaps[reflect.TypeOf(btf.GetData()).Elem().Field(0).Name]; f {
+		tf := reflect.New(v)
+		tf.Elem().FieldByName("TransitFrame").Set(reflect.ValueOf(&transitFrame{tf: btf}))
+		msg = tf.Interface().(TransitFrame)
+		return
+	}
+
+	return nil
 }
 
 type transitFrame struct {
@@ -78,7 +91,7 @@ func (m *transitFrame) TypeName() string {
 		return ""
 	}
 
-	return tfdE.Field(0).Elem().Type().Name()
+	return tfdE.Type().Field(0).Name
 }
 
 func (m *transitFrame) Cast() CastTransitFrame {

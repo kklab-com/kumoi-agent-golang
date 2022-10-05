@@ -4,6 +4,10 @@ type LeaveVote struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&LeaveVote{})
+}
+
 func (c *LeaveVote) GetSessionId() string {
 	return c.BaseTransitFrame().GetLeaveVote().GetSessionId()
 }

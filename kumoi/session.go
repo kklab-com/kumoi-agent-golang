@@ -55,7 +55,7 @@ func (s *remoteSession[T]) GetMetadata() *base.Metadata {
 
 func (s *remoteSession[T]) OnMessage(f func(msg *messages.SessionMessage)) {
 	s.session.OnMessage(func(msg *omega.TransitFrame) {
-		f(value.Cast[*messages.SessionMessage](getParsedTransitFrameFromBaseTransitFrame(msg)))
+		f(value.Cast[*messages.SessionMessage](messages.WrapTransitFrame(msg)))
 	})
 }
 

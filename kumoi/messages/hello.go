@@ -4,6 +4,10 @@ type Hello struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&Hello{})
+}
+
 func (c *Hello) GetSessionId() string {
 	return c.BaseTransitFrame().GetHello().GetSessionId()
 }

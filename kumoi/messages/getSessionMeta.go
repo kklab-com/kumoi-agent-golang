@@ -8,6 +8,10 @@ type GetSessionMeta struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&GetSessionMeta{})
+}
+
 func (c *GetSessionMeta) GetSessionId() string {
 	return c.BaseTransitFrame().GetGetSessionMeta().GetSessionId()
 }

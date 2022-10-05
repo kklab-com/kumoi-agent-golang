@@ -9,6 +9,10 @@ type ChannelMessage struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&ChannelMessage{})
+}
+
 func (c *ChannelMessage) GetChannelId() string {
 	return c.BaseTransitFrame().GetChannelMessage().GetChannelId()
 }

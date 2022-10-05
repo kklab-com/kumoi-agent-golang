@@ -9,6 +9,10 @@ type SetChannelMeta struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&SetChannelMeta{})
+}
+
 func (c *SetChannelMeta) GetChannelId() string {
 	return c.BaseTransitFrame().GetSetChannelMeta().GetChannelId()
 }

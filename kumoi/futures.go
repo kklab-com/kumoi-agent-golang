@@ -66,7 +66,7 @@ func (f *defaultSendFuture[T]) Error() error {
 }
 
 func (f *defaultSendFuture[T]) TransitFrame() (t T) {
-	var an any = getParsedTransitFrameFromBaseTransitFrame(f.bf.Get())
+	var an any = messages.WrapTransitFrame(f.bf.Get())
 	t = value.Cast[T](an)
 	return
 }

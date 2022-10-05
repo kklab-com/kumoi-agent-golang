@@ -4,6 +4,10 @@ type ChannelCount struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&ChannelCount{})
+}
+
 func (c *ChannelCount) GetChannelId() string {
 	return c.BaseTransitFrame().GetChannelCount().GetChannelId()
 }

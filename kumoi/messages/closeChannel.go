@@ -4,6 +4,10 @@ type CloseChannel struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&CloseChannel{})
+}
+
 func (c *CloseChannel) GetChannelId() string {
 	return c.BaseTransitFrame().GetCloseChannel().GetChannelId()
 }

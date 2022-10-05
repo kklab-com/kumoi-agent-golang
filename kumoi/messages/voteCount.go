@@ -6,6 +6,10 @@ type VoteCount struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&VoteCount{})
+}
+
 func (x *VoteCount) GetVoteId() string {
 	return x.BaseTransitFrame().GetVoteCount().GetVoteId()
 }

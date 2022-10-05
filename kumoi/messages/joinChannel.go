@@ -9,6 +9,10 @@ type JoinChannel struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&JoinChannel{})
+}
+
 func (c *JoinChannel) GetName() string {
 	return c.BaseTransitFrame().GetJoinChannel().GetName()
 }

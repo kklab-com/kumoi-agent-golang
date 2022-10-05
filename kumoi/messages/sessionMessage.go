@@ -4,6 +4,10 @@ type SessionMessage struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&SessionMessage{})
+}
+
 func (c *SessionMessage) GetFromSession() string {
 	return c.BaseTransitFrame().GetSessionMessage().GetFromSession()
 }

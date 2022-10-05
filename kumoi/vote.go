@@ -214,7 +214,7 @@ func (v *Vote) init() {
 					v.info.voteOptions = vtos
 				}
 
-				if vtf := getParsedTransitFrameFromBaseTransitFrame(tf); vtf != nil {
+				if vtf := messages.WrapTransitFrame(tf); vtf != nil {
 					v.watch(vtf)
 				} else {
 					kklogger.WarnJ("kumoi:Vote.init", fmt.Sprintf("%s should not be here", tf.String()))

@@ -8,6 +8,10 @@ type SetVoteMeta struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&SetVoteMeta{})
+}
+
 func (x *SetVoteMeta) GetVoteId() string {
 	return x.BaseTransitFrame().GetSetVoteMeta().GetVoteId()
 }

@@ -9,6 +9,10 @@ type JoinVote struct {
 	TransitFrame
 }
 
+func init() {
+	registerTransitFrame(&JoinVote{})
+}
+
 func (x *JoinVote) GetName() string {
 	return x.BaseTransitFrame().GetJoinVote().GetName()
 }

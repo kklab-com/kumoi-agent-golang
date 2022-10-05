@@ -227,7 +227,7 @@ func (c *Channel) init() {
 					fc.info.createdAt = tfd.GetCreatedAt()
 				}
 
-				if ctf := getParsedTransitFrameFromBaseTransitFrame(tf); ctf != nil {
+				if ctf := messages.WrapTransitFrame(tf); ctf != nil {
 					fc.watch(ctf)
 				} else {
 					kklogger.WarnJ("kumoi:Channel.init", fmt.Sprintf("%s should not be here", tf.String()))
@@ -287,7 +287,7 @@ func (p *channelPlayer) Next() (t messages.TransitFrame) {
 	}
 
 	if p.cursor < len(p.tfs) {
-		t = getParsedTransitFrameFromBaseTransitFrame(p.tfs[p.cursor])
+		t = messages.WrapTransitFrame(p.tfs[p.cursor])
 		p.cursor++
 		return
 	} else if p.cursor == len(p.tfs) && len(p.tfs) > 0 {
