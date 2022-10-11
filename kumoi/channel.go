@@ -16,7 +16,7 @@ import (
 type ChannelInfo struct {
 	channelId string
 	name      string
-	metadata  *base.Metadata
+	metadata  map[string]any
 	skill     *omega.Skill
 	createdAt int64
 	omega     *Omega
@@ -30,7 +30,7 @@ func (c *ChannelInfo) Name() string {
 	return c.name
 }
 
-func (c *ChannelInfo) Metadata() *base.Metadata {
+func (c *ChannelInfo) Metadata() map[string]any {
 	return c.metadata
 }
 
@@ -58,7 +58,7 @@ func (c *ChannelInfo) Join(key string) *Channel {
 			}
 
 			ch.info.name = cv.GetName()
-			ch.info.metadata = cv.GetChannelMetadata()
+			ch.info.metadata = base.SafeGetStructMap(cv.GetChannelMetadata())
 			if cv.GetRoleIndicator() == omega.Role_RoleOwner {
 				ch.info.skill = cv.GetSkill()
 			}
@@ -117,12 +117,12 @@ func (c *Channel) Fetch() SendFuture[*messages.GetChannelMeta] {
 	return wrapSendFuture[*messages.GetChannelMeta](c.omega.Agent().GetChannelMetadata(c.Id()))
 }
 
-func (c *Channel) Metadata() *base.Metadata {
+func (c *Channel) Metadata() map[string]any {
 	return c.info.Metadata()
 }
 
-func (c *Channel) SetMetadata(meta *base.Metadata) SendFuture[*messages.SetChannelMeta] {
-	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", meta, nil))
+func (c *Channel) SetMetadata(metadata map[string]any) SendFuture[*messages.SetChannelMeta] {
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", base.NewMetadata(metadata), nil))
 }
 
 func (c *Channel) SetSkill(skill *omega.Skill) SendFuture[*messages.SetChannelMeta] {
@@ -157,12 +157,12 @@ func (c *Channel) Close() SendFuture[*messages.CloseChannel] {
 	return wsf
 }
 
-func (c *Channel) SendMessage(msg string, meta *base.Metadata) SendFuture[*messages.ChannelMessage] {
-	return wrapSendFuture[*messages.ChannelMessage](c.omega.Agent().ChannelMessage(c.Info().channelId, msg, meta))
+func (c *Channel) SendMessage(msg string, metadata map[string]any) SendFuture[*messages.ChannelMessage] {
+	return wrapSendFuture[*messages.ChannelMessage](c.omega.Agent().ChannelMessage(c.Info().channelId, msg, base.NewMetadata(metadata)))
 }
 
-func (c *Channel) SendOwnerMessage(msg string, meta *base.Metadata) SendFuture[*messages.ChannelOwnerMessage] {
-	return wrapSendFuture[*messages.ChannelOwnerMessage](c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, meta))
+func (c *Channel) SendOwnerMessage(msg string, metadata map[string]any) SendFuture[*messages.ChannelOwnerMessage] {
+	return wrapSendFuture[*messages.ChannelOwnerMessage](c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, base.NewMetadata(metadata)))
 }
 
 func (c *Channel) Count() SendFuture[*messages.ChannelCount] {
@@ -223,7 +223,7 @@ func (c *Channel) init() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
 					fc.info.name = tfd.GetName()
-					fc.info.metadata = tfd.GetData()
+					fc.info.metadata = base.SafeGetStructMap(tfd.GetData())
 					fc.info.createdAt = tfd.GetCreatedAt()
 				}
 
@@ -243,7 +243,7 @@ func (c *Channel) init() {
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
 					fc.info.name = tfd.GetName()
-					fc.info.metadata = tfd.GetData()
+					fc.info.metadata = base.SafeGetStructMap(tfd.GetData())
 					fc.info.createdAt = tfd.GetCreatedAt()
 					if fc.Role() == omega.Role_RoleOwner {
 						fc.info.skill = tfd.GetSkill()

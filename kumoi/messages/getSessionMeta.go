@@ -1,8 +1,6 @@
 package messages
 
-import (
-	"github.com/kklab-com/kumoi-agent-golang/base"
-)
+import "github.com/kklab-com/kumoi-agent-golang/base"
 
 type GetSessionMeta struct {
 	TransitFrame
@@ -24,6 +22,6 @@ func (c *GetSessionMeta) GetName() string {
 	return c.BaseTransitFrame().GetGetSessionMeta().GetName()
 }
 
-func (c *GetSessionMeta) GetData() *base.Metadata {
-	return c.BaseTransitFrame().GetGetSessionMeta().GetData()
+func (c *GetSessionMeta) GetData() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetGetSessionMeta().GetData())
 }

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
-	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -39,7 +38,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 		println(reflect.ValueOf(msg).Elem().Type().Name())
 		switch v := msg.(type) {
 		case *messages.ChannelMessage:
-			if v.GetMetadata() != nil && v.GetMetadata().GetFields()["typ"].GetStringValue() == "SendMessage" {
+			if v.GetMetadata() != nil && v.GetMetadata()["typ"] == "SendMessage" {
 				cmMeta.Completable().Complete(nil)
 			}
 		}
@@ -47,7 +46,7 @@ func TestChannel_ChannelJoin(t *testing.T) {
 
 	assert.NotNil(t, ch)
 	assert.NotEqual(t, ch.Role(), omega.Role_RoleOwner)
-	assert.True(t, ch.SendMessage("SendMessage", base.NewMetadata(map[string]interface{}{"typ": "SendMessage"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ch.SendMessage("SendMessage", map[string]interface{}{"typ": "SendMessage"}).AwaitTimeout(Timeout).IsSuccess())
 	assert.False(t, ch.SendOwnerMessage("SendOwnerMessage", nil).AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, cmMeta.Await().IsSuccess())
 	assert.False(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())

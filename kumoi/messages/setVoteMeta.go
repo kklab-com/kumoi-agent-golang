@@ -16,8 +16,8 @@ func (x *SetVoteMeta) GetVoteId() string {
 	return x.BaseTransitFrame().GetSetVoteMeta().GetVoteId()
 }
 
-func (x *SetVoteMeta) GetData() *base.Metadata {
-	return x.BaseTransitFrame().GetSetVoteMeta().GetData()
+func (x *SetVoteMeta) GetData() map[string]any {
+	return base.SafeGetStructMap(x.BaseTransitFrame().GetSetVoteMeta().GetData())
 }
 
 func (x *SetVoteMeta) GetName() string {

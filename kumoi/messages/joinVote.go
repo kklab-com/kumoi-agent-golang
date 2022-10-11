@@ -21,16 +21,16 @@ func (x *JoinVote) GetSessionId() string {
 	return x.BaseTransitFrame().GetJoinVote().GetSessionId()
 }
 
-func (x *JoinVote) GetSessionMetadata() *base.Metadata {
-	return x.BaseTransitFrame().GetJoinVote().GetSessionMetadata()
+func (x *JoinVote) GetSessionMetadata() map[string]any {
+	return base.SafeGetStructMap(x.BaseTransitFrame().GetJoinVote().GetSessionMetadata())
 }
 
 func (x *JoinVote) GetVoteId() string {
 	return x.BaseTransitFrame().GetJoinVote().GetVoteId()
 }
 
-func (x *JoinVote) GetVoteMetadata() *base.Metadata {
-	return x.BaseTransitFrame().GetJoinVote().GetVoteMetadata()
+func (x *JoinVote) GetVoteMetadata() map[string]any {
+	return base.SafeGetStructMap(x.BaseTransitFrame().GetJoinVote().GetVoteMetadata())
 }
 
 func (x *JoinVote) GetKey() string {

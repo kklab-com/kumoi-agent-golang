@@ -29,8 +29,8 @@ func (c *GetChannelMeta) GetCreatedAt() int64 {
 	return c.BaseTransitFrame().GetGetChannelMeta().GetCreatedAt()
 }
 
-func (c *GetChannelMeta) GetData() *base.Metadata {
-	return c.BaseTransitFrame().GetGetChannelMeta().GetData()
+func (c *GetChannelMeta) GetData() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetGetChannelMeta().GetData())
 }
 
 func (c *GetChannelMeta) GetSkill() *omega.Skill {

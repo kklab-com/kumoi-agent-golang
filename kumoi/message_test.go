@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
-	"github.com/kklab-com/kumoi-agent-golang/base"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -78,13 +77,13 @@ func TestMessage_ChannelMessage(t *testing.T) {
 		case *messages.ChannelMessage:
 			if v.GetMessage() == TestMessage &&
 				v.GetFromSession() == oFirst.Session().GetId() &&
-				v.GetMetadata().AsMap()["MK"] == "MV" {
+				v.GetMetadata()["MK"] == "MV" {
 				okFuture.Completable().Complete(nil)
 			}
 		}
 	})
 
-	assert.True(t, ch.SendMessage(TestMessage, base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ch.SendMessage(TestMessage, map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
 
 	assert.True(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())
 
@@ -116,13 +115,13 @@ func TestMessage_ChannelOwnerMessage(t *testing.T) {
 		case *messages.ChannelOwnerMessage:
 			if v.GetMessage() == TestMessage &&
 				v.GetFromSession() == oFirst.Session().GetId() &&
-				v.GetMetadata().AsMap()["MK"] == "MV" {
+				v.GetMetadata()["MK"] == "MV" {
 				okFuture.Completable().Complete(nil)
 			}
 		}
 	})
 
-	assert.True(t, ch.SendOwnerMessage(TestMessage, base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ch.SendOwnerMessage(TestMessage, map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, ch2.SendOwnerMessage(TestMessage, nil).AwaitTimeout(Timeout).IsFail())
 
 	assert.True(t, ch.Close().AwaitTimeout(Timeout).IsSuccess())
@@ -148,10 +147,10 @@ func TestMessage_GetChannelMeta(t *testing.T) {
 	ch := reqFuture.Join()
 	assert.NotEmpty(t, ch)
 
-	assert.True(t, ch.SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, ch.SetMetadata(map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
 	ch2 := oSecond.Channel(resp.ChannelId).Join("")
 	assert.NotEmpty(t, ch2)
-	assert.True(t, ch2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData().AsMap()["MK"] == "MV")
+	assert.True(t, ch2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData()["MK"] == "MV")
 	assert.True(t, ch2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetName() == t.Name())
 	okFuture.Completable().Complete(nil)
 
@@ -167,9 +166,9 @@ func TestMessage_GetSessionMeta(t *testing.T) {
 	oSecond := NewOmegaBuilder(conf).Connect().Get()
 	okFuture := concurrent.NewFuture()
 
-	assert.True(t, oFirst.Session().SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
-	assert.True(t, oFirst.Session().Fetch().AwaitTimeout(Timeout).TransitFrame().GetData().AsMap()["MK"] == "MV")
-	assert.True(t, oSecond.GetRemoteSession(oFirst.Session().GetId()).GetMetadata().AsMap()["MK"] == "MV")
+	assert.True(t, oFirst.Session().SetMetadata(map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, oFirst.Session().Fetch().AwaitTimeout(Timeout).TransitFrame().GetData()["MK"] == "MV")
+	assert.True(t, oSecond.GetRemoteSession(oFirst.Session().GetId()).GetMetadata()["MK"] == "MV")
 	okFuture.Completable().Complete(nil)
 
 	assert.True(t, okFuture.AwaitTimeout(Timeout).IsSuccess())
@@ -197,14 +196,14 @@ func TestMessage_GetVoteMeta(t *testing.T) {
 	vt := reqFuture.Join()
 	assert.NotEmpty(t, vt)
 
-	assert.True(t, vt.SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.SetMetadata(map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, vt.Info().VoteOptions()[0].Name == "vto1")
 	assert.True(t, vt.Info().VoteOptions()[1].Name == "vto2")
 	assert.True(t, vt.Info().VoteOptions()[0].Id != "")
 	assert.True(t, vt.Info().VoteOptions()[1].Id != "")
 	vt2 := oSecond.Vote(resp.VoteId).Join("")
 	assert.NotEmpty(t, vt2)
-	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData().AsMap()["MK"] == "MV")
+	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData()["MK"] == "MV")
 	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetName() == t.Name())
 	okFuture.Completable().Complete(nil)
 
@@ -291,14 +290,14 @@ func TestMessage_LeaveVote(t *testing.T) {
 	vt := reqFuture.Join()
 	assert.NotEmpty(t, vt)
 
-	assert.True(t, vt.SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.SetMetadata(map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, vt.Info().VoteOptions()[0].Name == "vto1")
 	assert.True(t, vt.Info().VoteOptions()[1].Name == "vto2")
 	assert.True(t, vt.Info().VoteOptions()[0].Id != "")
 	assert.True(t, vt.Info().VoteOptions()[1].Id != "")
 	vt2 := oSecond.Vote(resp.VoteId).Join("")
 	assert.NotEmpty(t, vt2)
-	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData().AsMap()["MK"] == "MV")
+	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData()["MK"] == "MV")
 	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetName() == t.Name())
 	okFuture.Completable().Complete(nil)
 
@@ -380,7 +379,7 @@ func TestMessage_VoteCount(t *testing.T) {
 	vt := reqFuture.Join()
 	assert.NotEmpty(t, vt)
 
-	assert.True(t, vt.SetMetadata(base.NewMetadata(map[string]interface{}{"MK": "MV"})).AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, vt.SetMetadata(map[string]interface{}{"MK": "MV"}).AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, vt.Info().VoteOptions()[0].Name == "vto1")
 	assert.True(t, vt.Info().VoteOptions()[1].Name == "vto2")
 	assert.True(t, vt.Info().VoteOptions()[0].Id != "")
@@ -391,7 +390,7 @@ func TestMessage_VoteCount(t *testing.T) {
 	assert.True(t, vt.Count().AwaitTimeout(Timeout).TransitFrame().GetVoteOptions()[0].GetCount() == 0)
 	assert.True(t, vt.Count().AwaitTimeout(Timeout).TransitFrame().GetVoteOptions()[1].GetCount() > 0)
 
-	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData().AsMap()["MK"] == "MV")
+	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetData()["MK"] == "MV")
 	assert.True(t, vt2.Fetch().AwaitTimeout(Timeout).TransitFrame().GetName() == t.Name())
 	okFuture.Completable().Complete(nil)
 

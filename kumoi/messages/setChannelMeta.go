@@ -21,8 +21,8 @@ func (c *SetChannelMeta) GetOffset() int64 {
 	return c.BaseTransitFrame().GetSetChannelMeta().GetOffset()
 }
 
-func (c *SetChannelMeta) GetData() *base.Metadata {
-	return c.BaseTransitFrame().GetSetChannelMeta().GetData()
+func (c *SetChannelMeta) GetData() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetSetChannelMeta().GetData())
 }
 
 func (c *SetChannelMeta) GetName() string {

@@ -37,8 +37,20 @@ func SDKLanguage() string {
 type Metadata = structpb.Struct
 
 func NewMetadata(v map[string]interface{}) *Metadata {
+	if v == nil {
+		return nil
+	}
+
 	newStruct, _ := structpb.NewStruct(v)
 	return newStruct
+}
+
+func SafeGetStructMap(strpb *structpb.Struct) map[string]any {
+	if strpb == nil {
+		return nil
+	}
+
+	return strpb.AsMap()
 }
 
 type transitPoolEntity struct {

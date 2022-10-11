@@ -105,7 +105,7 @@ func (o *Omega) Channel(channelId string) *ChannelInfo {
 		channelInfo := &ChannelInfo{
 			channelId: meta.GetChannelId(),
 			name:      meta.GetName(),
-			metadata:  meta.GetData(),
+			metadata:  base.SafeGetStructMap(meta.GetData()),
 			createdAt: meta.GetCreatedAt(),
 			omega:     o,
 		}
@@ -122,7 +122,7 @@ func (o *Omega) Vote(voteId string) *VoteInfo {
 		voteInfo := &VoteInfo{
 			voteId:    meta.GetVoteId(),
 			name:      meta.GetName(),
-			metadata:  meta.GetData(),
+			metadata:  base.SafeGetStructMap(meta.GetData()),
 			createdAt: meta.GetCreatedAt(),
 			omega:     o,
 		}

@@ -21,8 +21,8 @@ func (x *GetVoteMeta) GetVoteOptions() []*omega.Vote_Option {
 	return x.BaseTransitFrame().GetGetVoteMeta().GetVoteOptions()
 }
 
-func (x *GetVoteMeta) GetData() *base.Metadata {
-	return x.BaseTransitFrame().GetGetVoteMeta().GetData()
+func (x *GetVoteMeta) GetData() map[string]any {
+	return base.SafeGetStructMap(x.BaseTransitFrame().GetGetVoteMeta().GetData())
 }
 
 func (x *GetVoteMeta) GetName() string {

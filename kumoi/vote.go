@@ -14,7 +14,7 @@ import (
 type VoteInfo struct {
 	voteId      string
 	name        string
-	metadata    *base.Metadata
+	metadata    map[string]any
 	voteOptions []VoteOption
 	createdAt   int64
 	omega       *Omega
@@ -28,7 +28,7 @@ func (v *VoteInfo) Name() string {
 	return v.name
 }
 
-func (v *VoteInfo) Metadata() *base.Metadata {
+func (v *VoteInfo) Metadata() map[string]any {
 	return v.metadata
 }
 
@@ -54,7 +54,7 @@ func (v *VoteInfo) Join(key string) *Vote {
 			}
 
 			vt.info.name = jv.GetName()
-			vt.info.metadata = jv.GetVoteMetadata()
+			vt.info.metadata = base.SafeGetStructMap(jv.GetVoteMetadata())
 			vt.info.voteOptions = nil
 			for _, vto := range jv.GetVoteOptions() {
 				vt.info.voteOptions = append(vt.info.voteOptions, VoteOption{
@@ -109,12 +109,12 @@ func (v *Vote) Fetch() SendFuture[*messages.GetVoteMeta] {
 	return wrapSendFuture[*messages.GetVoteMeta](v.omega.Agent().GetVoteMetadata(v.Id()))
 }
 
-func (v *Vote) Metadata() *base.Metadata {
+func (v *Vote) Metadata() map[string]any {
 	return v.info.Metadata()
 }
 
-func (v *Vote) SetMetadata(meta *base.Metadata) SendFuture[*messages.SetVoteMeta] {
-	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().voteId, "", meta))
+func (v *Vote) SetMetadata(metadata map[string]any) SendFuture[*messages.SetVoteMeta] {
+	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().voteId, "", base.NewMetadata(metadata)))
 }
 
 func (v *Vote) Leave() SendFuture[*messages.LeaveVote] {
@@ -196,7 +196,7 @@ func (v *Vote) init() {
 					}
 
 					v.info.name = tfd.GetName()
-					v.info.metadata = tfd.GetData()
+					v.info.metadata = base.SafeGetStructMap(tfd.GetData())
 					v.info.voteOptions = vtos
 					v.info.createdAt = tfd.GetCreatedAt()
 				}
@@ -232,7 +232,7 @@ func (v *Vote) init() {
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetVoteMeta(); tfd != nil {
 					v.info.name = tfd.GetName()
-					v.info.metadata = tfd.GetData()
+					v.info.metadata = base.SafeGetStructMap(tfd.GetData())
 					v.info.createdAt = tfd.GetCreatedAt()
 				}
 

@@ -13,7 +13,7 @@ type RemoteSession[T base.RemoteSession] interface {
 	GetId() string
 	GetSubject() string
 	GetName() string
-	GetMetadata() *base.Metadata
+	GetMetadata() map[string]any
 	OnMessage(f func(msg *messages.SessionMessage))
 	SendMessage(message string) SendFuture[*messages.SessionMessage]
 	Fetch() SendFuture[*messages.GetSessionMeta]
@@ -22,7 +22,7 @@ type RemoteSession[T base.RemoteSession] interface {
 type Session interface {
 	RemoteSession[base.Session]
 	SetName(name string) SendFuture[*messages.SetSessionMeta]
-	SetMetadata(metadata *base.Metadata) SendFuture[*messages.SetSessionMeta]
+	SetMetadata(metadata map[string]any) SendFuture[*messages.SetSessionMeta]
 	OnRead(f func(th *omega.TransitFrame))
 	OnClosed(f func())
 	OnError(f func(err error))
@@ -49,8 +49,8 @@ func (s *remoteSession[T]) GetName() string {
 	return s.session.GetName()
 }
 
-func (s *remoteSession[T]) GetMetadata() *base.Metadata {
-	return s.session.GetMetadata()
+func (s *remoteSession[T]) GetMetadata() map[string]any {
+	return base.SafeGetStructMap(s.session.GetMetadata())
 }
 
 func (s *remoteSession[T]) OnMessage(f func(msg *messages.SessionMessage)) {
@@ -79,8 +79,8 @@ func (s *session) SetName(name string) SendFuture[*messages.SetSessionMeta] {
 	return wrapSendFuture[*messages.SetSessionMeta](s.getCastSession().SetName(name))
 }
 
-func (s *session) SetMetadata(metadata *base.Metadata) SendFuture[*messages.SetSessionMeta] {
-	return wrapSendFuture[*messages.SetSessionMeta](s.getCastSession().SetMetadata(metadata))
+func (s *session) SetMetadata(metadata map[string]any) SendFuture[*messages.SetSessionMeta] {
+	return wrapSendFuture[*messages.SetSessionMeta](s.getCastSession().SetMetadata(base.NewMetadata(metadata)))
 }
 
 func (s *session) OnRead(f func(th *omega.TransitFrame)) {

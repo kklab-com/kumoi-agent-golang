@@ -41,8 +41,8 @@ func (c *ChannelMessage) GetRoleIndicator() omega.Role {
 	return c.BaseTransitFrame().GetChannelMessage().GetRoleIndicator()
 }
 
-func (c *ChannelMessage) GetMetadata() *base.Metadata {
-	return c.BaseTransitFrame().GetChannelMessage().GetMetadata()
+func (c *ChannelMessage) GetMetadata() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetChannelMessage().GetMetadata())
 }
 
 func (c *ChannelMessage) GetSkill() *omega.Skill {

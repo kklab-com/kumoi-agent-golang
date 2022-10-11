@@ -18,6 +18,6 @@ func (c *SetSessionMeta) GetName() string {
 	return c.BaseTransitFrame().GetSetSessionMeta().GetName()
 }
 
-func (c *SetSessionMeta) GetData() *base.Metadata {
-	return c.BaseTransitFrame().GetSetSessionMeta().GetData()
+func (c *SetSessionMeta) GetData() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetSetSessionMeta().GetData())
 }

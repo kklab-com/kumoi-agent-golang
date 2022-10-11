@@ -33,8 +33,8 @@ func (c *JoinChannel) GetSubjectName() string {
 	return c.BaseTransitFrame().GetJoinChannel().GetSubjectName()
 }
 
-func (c *JoinChannel) GetSessionMetadata() *base.Metadata {
-	return c.BaseTransitFrame().GetJoinChannel().GetSessionMetadata()
+func (c *JoinChannel) GetSessionMetadata() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetJoinChannel().GetSessionMetadata())
 }
 
 func (c *JoinChannel) GetRoleIndicator() omega.Role {

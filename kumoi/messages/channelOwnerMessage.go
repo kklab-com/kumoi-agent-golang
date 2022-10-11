@@ -37,8 +37,8 @@ func (c *ChannelOwnerMessage) GetSubjectName() string {
 	return c.BaseTransitFrame().GetChannelOwnerMessage().GetSubjectName()
 }
 
-func (c *ChannelOwnerMessage) GetMetadata() *base.Metadata {
-	return c.BaseTransitFrame().GetChannelOwnerMessage().GetMetadata()
+func (c *ChannelOwnerMessage) GetMetadata() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetChannelOwnerMessage().GetMetadata())
 }
 
 func (c *ChannelOwnerMessage) GetSkill() *omega.Skill {
