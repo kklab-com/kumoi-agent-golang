@@ -382,7 +382,7 @@ func (s *session) transitFramePreProcess(tf *omega.TransitFrame) {
 			s.subject = gsm.GetSubject()
 			s.name = gsm.GetName()
 			s.metadata = gsm.GetData()
-		} else if v, f := s.remoteSessions.Load(s.id); f {
+		} else if v, f := s.remoteSessions.Load(gsm.GetSessionId()); f {
 			rs := value.Cast[*session](v)
 			rs.id = gsm.GetSessionId()
 			rs.subject = gsm.GetSubject()
