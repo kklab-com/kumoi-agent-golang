@@ -214,9 +214,7 @@ func (o *Omega) CreateVote(createVote apirequest.CreateVote) *CreateVoteFuture {
 }
 
 type OmegaBuilder struct {
-	conf   *base.Config
-	engine *base.Engine
-	ab     base.AgentBuilder
+	ab *base.AgentBuilder
 }
 
 func NewOmegaBuilder(conf *base.Config) *OmegaBuilder {
@@ -224,20 +222,14 @@ func NewOmegaBuilder(conf *base.Config) *OmegaBuilder {
 		return nil
 	}
 
-	return &OmegaBuilder{conf: conf}
+	return &OmegaBuilder{
+		base.NewAgentBuilder(conf),
+	}
 }
 
 func (b *OmegaBuilder) Connect() concurrent.CastFuture[*Omega] {
-	if b.conf == nil && b.engine == nil {
-		return concurrent.WrapCastFuture[*Omega](concurrent.NewFailedFuture(base.ErrConfigIsEmpty))
-	}
-
 	of := concurrent.NewCastFuture[*Omega]()
-	if b.engine == nil {
-		b.engine = base.NewEngine(b.conf)
-	}
-
-	b.ab.WithEngine(b.engine).Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+	b.ab.Connect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 		if f.IsSuccess() {
 			of.Completable().Complete(NewOmega(f.Get().(base.Agent)))
 		} else if f.IsCancelled() {
@@ -252,7 +244,7 @@ func (b *OmegaBuilder) Connect() concurrent.CastFuture[*Omega] {
 }
 
 func (b *OmegaBuilder) WithEngine(engine *base.Engine) *OmegaBuilder {
-	b.engine = engine
+	b.ab.WithEngine(engine)
 	return b
 }
 
