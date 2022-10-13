@@ -105,8 +105,7 @@ func newSession(engine *Engine) *session {
 		remoteSession: remoteSession{
 			metadata: NewMetadata(nil),
 		},
-		transitFrameWorkQueue: concurrent.NewUnlimitedBlockingQueue(),
-		lastActiveTimestamp:   time.Now(),
+		lastActiveTimestamp: time.Now(),
 	}
 }
 
@@ -125,7 +124,6 @@ type session struct {
 	connectFuture                concurrent.Future
 	lastActiveTimestamp          time.Time
 	workerStatus                 int32
-	transitFrameWorkQueue        concurrent.BlockingQueue
 	onSessionMessageHandler      func(tf *omega.TransitFrame)
 	onReadHandler                func(tf *omega.TransitFrame)
 	onClosedHandler              func()
@@ -420,39 +418,16 @@ func (s *session) invokeOnRead(tf *omega.TransitFrame) {
 }
 
 func (s *session) submitTransitFrameWorker(tf *omega.TransitFrame) {
-	s.transitFrameWorkQueue.Push(tf)
-	if atomic.CompareAndSwapInt32(&s.workerStatus, 0, 1) {
-		go s.transitFrameWorker(true)
-	}
-}
-
-func (s *session) transitFrameWorker(retry bool) {
-	for !s.IsClosed() {
-		if v := s.transitFrameWorkQueue.TryPop(); v != nil {
-			if !retry {
-				retry = !retry
+	if !s.IsClosed() {
+		s.invokeOnReadHandler(tf)
+		if sm := tf.GetSessionMessage(); sm != nil {
+			if tf.GetClass() == omega.TransitFrame_ClassNotification {
+				s.invokeOnSessionMessageHandler(tf)
 			}
 
-			if tf, ok := v.(*omega.TransitFrame); ok {
-				s.invokeOnReadHandler(tf)
-
-				if sm := tf.GetSessionMessage(); sm != nil {
-					if tf.GetClass() == omega.TransitFrame_ClassNotification {
-						s.invokeOnSessionMessageHandler(tf)
-					}
-
-					if v, f := s.remoteSessions.Load(sm.GetFromSession()); f {
-						v.(*remoteSession).onSessionMessageHandler(tf)
-					}
-				}
+			if v, f := s.remoteSessions.Load(sm.GetFromSession()); f {
+				v.(*remoteSession).onSessionMessageHandler(tf)
 			}
-		} else {
-			if retry {
-				atomic.CompareAndSwapInt32(&s.workerStatus, 1, 0)
-				s.transitFrameWorker(false)
-			}
-
-			break
 		}
 	}
 }
