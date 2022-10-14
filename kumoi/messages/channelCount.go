@@ -23,3 +23,7 @@ func (c *ChannelCount) GetParticipatorCount() int32 {
 func (c *ChannelCount) GetCount() int32 {
 	return c.BaseTransitFrame().GetChannelCount().GetCount()
 }
+
+func (c *ChannelCount) GetOffset() int64 {
+	return c.BaseTransitFrame().GetChannelCount().GetOffset()
+}

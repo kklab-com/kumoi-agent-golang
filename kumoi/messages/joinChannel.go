@@ -37,10 +37,22 @@ func (c *JoinChannel) GetSessionMetadata() map[string]any {
 	return base.SafeGetStructMap(c.BaseTransitFrame().GetJoinChannel().GetSessionMetadata())
 }
 
+func (c *JoinChannel) GetChannelId() string {
+	return c.BaseTransitFrame().GetJoinChannel().GetChannelId()
+}
+
+func (c *JoinChannel) GetChannelMetadata() map[string]any {
+	return base.SafeGetStructMap(c.BaseTransitFrame().GetJoinChannel().GetChannelMetadata())
+}
+
 func (c *JoinChannel) GetRoleIndicator() omega.Role {
 	return c.BaseTransitFrame().GetJoinChannel().GetRoleIndicator()
 }
 
 func (c *JoinChannel) GetSkill() *omega.Skill {
 	return c.BaseTransitFrame().GetJoinChannel().GetSkill()
+}
+
+func (c *JoinChannel) GetOffset() int64 {
+	return c.BaseTransitFrame().GetJoinChannel().GetOffset()
 }
