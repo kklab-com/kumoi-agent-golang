@@ -116,6 +116,8 @@ type CastTransitFrame interface {
 	ChannelMessage() *ChannelMessage
 	ChannelOwnerMessage() *ChannelOwnerMessage
 	ChannelCount() *ChannelCount
+	PlaybackChannelMessage() *PlaybackChannelMessage
+	ReplayChannelMessage() *ReplayChannelMessage
 	LeaveChannel() *LeaveChannel
 	CloseChannel() *CloseChannel
 	JoinVote() *JoinVote
@@ -171,6 +173,14 @@ func (m *castTransitFrame) ChannelOwnerMessage() *ChannelOwnerMessage {
 
 func (m *castTransitFrame) ChannelCount() *ChannelCount {
 	return &ChannelCount{TransitFrame: m.tf}
+}
+
+func (m *castTransitFrame) PlaybackChannelMessage() *PlaybackChannelMessage {
+	return &PlaybackChannelMessage{TransitFrame: m.tf}
+}
+
+func (m *castTransitFrame) ReplayChannelMessage() *ReplayChannelMessage {
+	return &ReplayChannelMessage{TransitFrame: m.tf}
 }
 
 func (m *castTransitFrame) LeaveChannel() *LeaveChannel {
