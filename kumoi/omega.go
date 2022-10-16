@@ -16,6 +16,7 @@ import (
 type Omega struct {
 	agent                   base.Agent
 	onMessageHandlers       sync.Map
+	session                 *session
 	OnMessageHandler        func(msg messages.TransitFrame)
 	OnSessionMessageHandler func(msg *messages.SessionMessage)
 	OnBroadcastHandler      func(msg *messages.Broadcast)
@@ -64,6 +65,7 @@ func (o *Omega) initWithAgent(agent base.Agent) *Omega {
 	omg.agent.OnBroadcast(omg.invokeOnBroadcast)
 	omg.agent.OnClosed(omg.invokeOnClosed)
 	omg.agent.OnError(omg.invokeOnError)
+	o.session = &session{remoteSession: remoteSession[base.Session]{session: o.agent.Session()}}
 	return omg
 }
 
@@ -72,7 +74,7 @@ func (o *Omega) Agent() base.Agent {
 }
 
 func (o *Omega) Session() Session {
-	return &session{remoteSession: remoteSession[base.Session]{session: o.agent.Session()}}
+	return o.session
 }
 
 func (o *Omega) GetRemoteSession(sessionId string) RemoteSession[base.RemoteSession] {

@@ -233,7 +233,7 @@ func (c *Channel) init() {
 					kklogger.WarnJ("kumoi:Channel.init", fmt.Sprintf("%s should not be here", tf.String()))
 				}
 
-				if tfd := tf.GetLeaveChannel(); tfd != nil {
+				if tfd := tf.GetLeaveChannel(); tfd != nil && tfd.GetSessionId() == c.omega.Session().GetId() {
 					fc.invokeOnLeaveChannelSuccess()
 				}
 

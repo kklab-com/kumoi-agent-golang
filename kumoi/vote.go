@@ -241,7 +241,7 @@ func (v *Vote) init() {
 					kklogger.WarnJ("kumoi:Vote.init", fmt.Sprintf("%s should not be here", tf.String()))
 				}
 
-				if tfd := tf.GetLeaveVote(); tfd != nil {
+				if tfd := tf.GetLeaveVote(); tfd != nil && tfd.GetSessionId() == v.omega.Session().GetId() {
 					v.invokeOnLeaveVoteSuccess()
 				}
 
