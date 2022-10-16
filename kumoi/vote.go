@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	concurrent "github.com/kklab-com/goth-concurrent"
 	kklogger "github.com/kklab-com/goth-kklogger"
 	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base"
@@ -118,11 +119,21 @@ func (v *Vote) SetMetadata(metadata map[string]any) SendFuture[*messages.SetVote
 }
 
 func (v *Vote) Leave() SendFuture[*messages.LeaveVote] {
-	return wrapSendFuture[*messages.LeaveVote](v.omega.Agent().LeaveVote(v.Info().voteId))
+	return wrapSendFuture[*messages.LeaveVote](v.omega.Agent().LeaveVote(v.Info().voteId)).
+		AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+			if f.IsSuccess() {
+				v.invokeOnLeaveVoteSuccess()
+			}
+		}))
 }
 
 func (v *Vote) Close() SendFuture[*messages.CloseVote] {
-	return wrapSendFuture[*messages.CloseVote](v.omega.Agent().CloseVote(v.Info().voteId, v.key))
+	return wrapSendFuture[*messages.CloseVote](v.omega.Agent().CloseVote(v.Info().voteId, v.key)).
+		AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+			if f.IsSuccess() {
+				v.invokeOnCloseVoteSuccess()
+			}
+		}))
 }
 
 func (v *Vote) SendMessage(msg string) SendFuture[*messages.VoteMessage] {
@@ -165,6 +176,16 @@ func (v *Vote) Watch(f func(msg messages.TransitFrame)) *Vote {
 	return v
 }
 
+func (v *Vote) invokeOnLeaveVoteSuccess() {
+	v.onLeave()
+	v.deInit()
+}
+
+func (v *Vote) invokeOnCloseVoteSuccess() {
+	v.onClose()
+	v.deInit()
+}
+
 func (v *Vote) init() {
 	v.omega.onMessageHandlers.Store(v.watchId(), func(tf *omega.TransitFrame) {
 		if tf.GetClass() == omega.TransitFrame_ClassError {
@@ -182,7 +203,7 @@ func (v *Vote) init() {
 		}
 
 		// has same voteId
-		if tfdEChId := tfdE.Field(0).Elem().FieldByName("VoteId"); tfdEChId.IsValid() && tfdEChId.String() == v.Id() {
+		if tfdEVtId := tfdE.Field(0).Elem().FieldByName("VoteId"); tfdEVtId.IsValid() && tfdEVtId.String() == v.Id() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetVoteMeta(); tfd != nil {
@@ -221,29 +242,11 @@ func (v *Vote) init() {
 				}
 
 				if tfd := tf.GetLeaveVote(); tfd != nil {
-					v.onLeave()
-					v.deInit()
+					v.invokeOnLeaveVoteSuccess()
 				}
 
 				if tfd := tf.GetCloseVote(); tfd != nil {
-					v.onClose()
-					v.deInit()
-				}
-			case omega.TransitFrame_ClassResponse:
-				if tfd := tf.GetGetVoteMeta(); tfd != nil {
-					v.info.name = tfd.GetName()
-					v.info.metadata = base.SafeGetStructMap(tfd.GetData())
-					v.info.createdAt = tfd.GetCreatedAt()
-				}
-
-				if tfd := tf.GetLeaveVote(); tfd != nil {
-					v.onLeave()
-					v.deInit()
-				}
-
-				if tfd := tf.GetCloseVote(); tfd != nil {
-					v.onClose()
-					v.deInit()
+					v.invokeOnCloseVoteSuccess()
 				}
 			}
 		}
