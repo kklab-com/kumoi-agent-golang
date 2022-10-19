@@ -9,6 +9,7 @@ import (
 	"time"
 
 	concurrent "github.com/kklab-com/goth-concurrent"
+	"github.com/kklab-com/goth-kkutil/value"
 	"github.com/kklab-com/kumoi-agent-golang/base/apirequest"
 	"github.com/kklab-com/kumoi-agent-golang/kumoi/messages"
 	omega "github.com/kklab-com/kumoi-protobuf-golang"
@@ -77,8 +78,8 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	cp := ch.ReplayChannelMessage(0, true, omega.Volume_VolumeLowest)
 	assert.NotNil(t, cp)
 	assert.Equal(t, int32(1), ch.Count().TransitFrame().GetCount())
-	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().GetName())
+	assert.Equal(t, ch.Id(), value.Cast[*messages.GetChannelMeta](cp.Next()).GetChannelId())
+	assert.Equal(t, ch.Name(), cp.Next().(*messages.SetChannelMeta).GetName())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Nil(t, cp.Next())
@@ -91,9 +92,9 @@ func TestChannel_ChannelJoin(t *testing.T) {
 	assert.NotNil(t, cp)
 	assert.Equal(t, string((&omega.ChannelMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
 	assert.Equal(t, string((&omega.ChannelOwnerMessage{}).ProtoReflect().Descriptor().Name()), cp.Next().TypeName())
-	assert.Equal(t, ch.Name(), cp.Next().Cast().SetChannelMeta().GetName())
-	assert.Equal(t, ch.Id(), cp.Next().Cast().GetChannelMeta().GetChannelId())
-	assert.Equal(t, ch.Id(), cp.Next().Cast().CloseChannel().GetChannelId())
+	assert.Equal(t, ch.Name(), cp.Next().(*messages.SetChannelMeta).GetName())
+	assert.Equal(t, ch.Id(), cp.Next().(*messages.GetChannelMeta).GetChannelId())
+	assert.Equal(t, ch.Id(), cp.Next().(*messages.CloseChannel).GetChannelId())
 	assert.Nil(t, cp.Next())
 	assert.True(t, closed)
 	assert.True(t, omg.Close().Await().AwaitTimeout(Timeout).IsSuccess())
@@ -156,7 +157,7 @@ func TestOmega_ChannelMultiSession(t *testing.T) {
 			}(threadIndex)
 
 			ch.Watch(func(msg messages.TransitFrame) {
-				if msg.Cast().ChannelMessage() != nil {
+				if value.Cast[*messages.ChannelMessage](msg) != nil {
 					atomic.AddInt32(&on, 1)
 					atomic.AddInt32(&nCount, 1)
 					wrd.Done()
@@ -248,7 +249,7 @@ func TestOmega_ChannelMultiChannelCount(t *testing.T) {
 			}(ii)
 
 			og.OnMessageHandler = func(tf messages.TransitFrame) {
-				if tf.Cast().ChannelCount() != nil {
+				if value.Cast[*messages.ChannelCount](tf) != nil {
 					atomic.AddInt32(&on, 1)
 					wrd.Done()
 				}
