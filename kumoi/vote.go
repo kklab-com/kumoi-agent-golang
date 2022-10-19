@@ -13,32 +13,28 @@ import (
 )
 
 type VoteInfo struct {
-	voteId      string
-	name        string
-	metadata    map[string]any
-	voteOptions []VoteOption
-	createdAt   int64
-	omega       *Omega
+	meta  *omega.GetVoteMeta
+	omega *Omega
 }
 
 func (v *VoteInfo) VoteId() string {
-	return v.voteId
+	return v.meta.VoteId
 }
 
 func (v *VoteInfo) Name() string {
-	return v.name
+	return v.meta.Name
 }
 
 func (v *VoteInfo) Metadata() map[string]any {
-	return v.metadata
+	return base.SafeGetStructMap(v.meta.Data)
 }
 
-func (v *VoteInfo) VoteOptions() []VoteOption {
-	return v.voteOptions
+func (v *VoteInfo) VoteOptions() []*omega.Vote_Option {
+	return v.meta.VoteOptions
 }
 
 func (v *VoteInfo) CreatedAt() int64 {
-	return v.createdAt
+	return v.meta.CreatedAt
 }
 
 func (v *VoteInfo) Join(key string) *Vote {
@@ -52,17 +48,6 @@ func (v *VoteInfo) Join(key string) *Vote {
 				onLeave: func() {},
 				onClose: func() {},
 				watch:   func(msg messages.TransitFrame) {},
-			}
-
-			vt.info.name = jv.GetName()
-			vt.info.metadata = base.SafeGetStructMap(jv.GetVoteMetadata())
-			vt.info.voteOptions = nil
-			for _, vto := range jv.GetVoteOptions() {
-				vt.info.voteOptions = append(vt.info.voteOptions, VoteOption{
-					vote: vt,
-					Id:   vto.GetId(),
-					Name: vto.GetName(),
-				})
 			}
 
 			vt.init()
@@ -81,6 +66,7 @@ type Vote struct {
 	key              string
 	omega            *Omega
 	info             *VoteInfo
+	voteOptions      []VoteOption
 	onLeave, onClose func()
 	watch            func(msg messages.TransitFrame)
 }
@@ -90,19 +76,23 @@ func (v *Vote) watchId() string {
 }
 
 func (v *Vote) Id() string {
-	return v.Info().voteId
+	return v.Info().VoteId()
 }
 
 func (v *Vote) Info() *VoteInfo {
 	return v.info
 }
 
+func (v *Vote) VoteOptions() []VoteOption {
+	return v.voteOptions
+}
+
 func (v *Vote) Name() string {
-	return v.Info().name
+	return v.Info().Name()
 }
 
 func (v *Vote) SetName(name string) SendFuture[*messages.SetVoteMeta] {
-	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().voteId, name, nil))
+	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().VoteId(), name, nil))
 
 }
 
@@ -115,11 +105,11 @@ func (v *Vote) Metadata() map[string]any {
 }
 
 func (v *Vote) SetMetadata(metadata map[string]any) SendFuture[*messages.SetVoteMeta] {
-	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().voteId, "", base.NewMetadata(metadata)))
+	return wrapSendFuture[*messages.SetVoteMeta](v.omega.Agent().SetVoteMetadata(v.Info().VoteId(), "", base.NewMetadata(metadata)))
 }
 
 func (v *Vote) Leave() SendFuture[*messages.LeaveVote] {
-	return wrapSendFuture[*messages.LeaveVote](v.omega.Agent().LeaveVote(v.Info().voteId)).
+	return wrapSendFuture[*messages.LeaveVote](v.omega.Agent().LeaveVote(v.Info().VoteId())).
 		AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 			if f.IsSuccess() {
 				v.invokeOnLeaveVoteSuccess()
@@ -128,7 +118,7 @@ func (v *Vote) Leave() SendFuture[*messages.LeaveVote] {
 }
 
 func (v *Vote) Close() SendFuture[*messages.CloseVote] {
-	return wrapSendFuture[*messages.CloseVote](v.omega.Agent().CloseVote(v.Info().voteId, v.key)).
+	return wrapSendFuture[*messages.CloseVote](v.omega.Agent().CloseVote(v.Info().VoteId(), v.key)).
 		AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
 			if f.IsSuccess() {
 				v.invokeOnCloseVoteSuccess()
@@ -137,19 +127,19 @@ func (v *Vote) Close() SendFuture[*messages.CloseVote] {
 }
 
 func (v *Vote) SendMessage(msg string) SendFuture[*messages.VoteMessage] {
-	return wrapSendFuture[*messages.VoteMessage](v.omega.Agent().VoteMessage(v.Info().voteId, msg))
+	return wrapSendFuture[*messages.VoteMessage](v.omega.Agent().VoteMessage(v.Info().VoteId(), msg))
 }
 
 func (v *Vote) SendOwnerMessage(msg string) SendFuture[*messages.VoteOwnerMessage] {
-	return wrapSendFuture[*messages.VoteOwnerMessage](v.omega.Agent().VoteOwnerMessage(v.Info().voteId, msg))
+	return wrapSendFuture[*messages.VoteOwnerMessage](v.omega.Agent().VoteOwnerMessage(v.Info().VoteId(), msg))
 }
 
 func (v *Vote) Count() SendFuture[*messages.VoteCount] {
-	return wrapSendFuture[*messages.VoteCount](v.omega.Agent().VoteCount(v.Info().voteId))
+	return wrapSendFuture[*messages.VoteCount](v.omega.Agent().VoteCount(v.Info().VoteId()))
 }
 
 func (v *Vote) Select(voteOptionId string) bool {
-	f := v.omega.Agent().VoteSelect(v.Info().voteId, voteOptionId).Await()
+	f := v.omega.Agent().VoteSelect(v.Info().VoteId(), voteOptionId).Await()
 	if !f.IsSuccess() {
 		return false
 	}
@@ -158,7 +148,7 @@ func (v *Vote) Select(voteOptionId string) bool {
 }
 
 func (v *Vote) Status(statusType omega.Vote_Status) SendFuture[*messages.VoteStatus] {
-	return wrapSendFuture[*messages.VoteStatus](v.omega.Agent().VoteStatus(v.Info().voteId, statusType))
+	return wrapSendFuture[*messages.VoteStatus](v.omega.Agent().VoteStatus(v.Info().VoteId(), statusType))
 }
 
 func (v *Vote) OnLeave(f func()) *Vote {
@@ -187,6 +177,14 @@ func (v *Vote) invokeOnCloseVoteSuccess() {
 }
 
 func (v *Vote) init() {
+	for _, option := range v.Info().VoteOptions() {
+		v.voteOptions = append(v.voteOptions, VoteOption{
+			vote: v,
+			Id:   option.Id,
+			Name: option.Name,
+		})
+	}
+
 	v.omega.onMessageHandlers.Store(v.watchId(), func(tf *omega.TransitFrame) {
 		if tf.GetClass() == omega.TransitFrame_ClassError {
 			return
@@ -207,32 +205,9 @@ func (v *Vote) init() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetVoteMeta(); tfd != nil {
-					var vtos []VoteOption
-					for _, vto := range tfd.GetVoteOptions() {
-						vtos = append(vtos, VoteOption{
-							vote: v,
-							Id:   vto.GetId(),
-							Name: vto.GetName(),
-						})
-					}
-
-					v.info.name = tfd.GetName()
-					v.info.metadata = base.SafeGetStructMap(tfd.GetData())
-					v.info.voteOptions = vtos
-					v.info.createdAt = tfd.GetCreatedAt()
-				}
-
-				if tfd := tf.GetVoteCount(); tfd != nil {
-					var vtos []VoteOption
-					for _, vto := range tf.GetVoteCount().GetVoteOptions() {
-						vtos = append(vtos, VoteOption{
-							vote: v,
-							Id:   vto.GetId(),
-							Name: vto.GetName(),
-						})
-					}
-
-					v.info.voteOptions = vtos
+					v.info.meta.Name = tfd.GetName()
+					v.info.meta.Data = tfd.GetData()
+					v.info.meta.CreatedAt = tfd.GetCreatedAt()
 				}
 
 				if vtf := messages.WrapTransitFrame(tf); vtf != nil {
@@ -247,6 +222,10 @@ func (v *Vote) init() {
 
 				if tfd := tf.GetCloseVote(); tfd != nil {
 					v.invokeOnCloseVoteSuccess()
+				}
+			case omega.TransitFrame_ClassResponse:
+				if tfd := tf.GetGetVoteMeta(); tfd != nil {
+					v.info.meta = tfd
 				}
 			}
 		}

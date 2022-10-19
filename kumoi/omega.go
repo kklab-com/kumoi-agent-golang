@@ -105,11 +105,8 @@ func (o *Omega) Channel(channelId string) *ChannelInfo {
 	if v := o.agent.GetChannelMetadata(channelId).Get(); v != nil {
 		meta := value.Cast[*omega.TransitFrame](v).GetGetChannelMeta()
 		channelInfo := &ChannelInfo{
-			channelId: meta.GetChannelId(),
-			name:      meta.GetName(),
-			metadata:  base.SafeGetStructMap(meta.GetData()),
-			createdAt: meta.GetCreatedAt(),
-			omega:     o,
+			meta:  meta,
+			omega: o,
 		}
 
 		return channelInfo
@@ -122,18 +119,8 @@ func (o *Omega) Vote(voteId string) *VoteInfo {
 	if v := o.agent.GetVoteMetadata(voteId).Get(); v != nil {
 		meta := value.Cast[*omega.TransitFrame](v).GetGetVoteMeta()
 		voteInfo := &VoteInfo{
-			voteId:    meta.GetVoteId(),
-			name:      meta.GetName(),
-			metadata:  base.SafeGetStructMap(meta.GetData()),
-			createdAt: meta.GetCreatedAt(),
-			omega:     o,
-		}
-
-		for _, vto := range meta.GetVoteOptions() {
-			voteInfo.voteOptions = append(voteInfo.voteOptions, VoteOption{
-				Id:   vto.GetId(),
-				Name: vto.GetName(),
-			})
+			meta:  meta,
+			omega: o,
 		}
 
 		return voteInfo

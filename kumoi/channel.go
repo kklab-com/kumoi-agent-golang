@@ -14,32 +14,28 @@ import (
 )
 
 type ChannelInfo struct {
-	channelId string
-	name      string
-	metadata  map[string]any
-	skill     *omega.Skill
-	createdAt int64
-	omega     *Omega
+	meta  *omega.GetChannelMeta
+	omega *Omega
 }
 
 func (c *ChannelInfo) ChannelId() string {
-	return c.channelId
+	return c.meta.ChannelId
 }
 
 func (c *ChannelInfo) Name() string {
-	return c.name
+	return c.meta.Name
 }
 
 func (c *ChannelInfo) Metadata() map[string]any {
-	return c.metadata
+	return base.SafeGetStructMap(c.meta.Data)
 }
 
 func (c *ChannelInfo) Skill() *omega.Skill {
-	return c.skill
+	return c.meta.Skill
 }
 
 func (c *ChannelInfo) CreatedAt() int64 {
-	return c.createdAt
+	return c.meta.CreatedAt
 }
 
 func (c *ChannelInfo) Join(key string) *Channel {
@@ -57,12 +53,7 @@ func (c *ChannelInfo) Join(key string) *Channel {
 				watch:    func(msg messages.TransitFrame) {},
 			}
 
-			ch.info.name = cv.GetName()
-			ch.info.metadata = base.SafeGetStructMap(cv.GetChannelMetadata())
-			if cv.GetRoleIndicator() == omega.Role_RoleOwner {
-				ch.info.skill = cv.GetSkill()
-			}
-
+			ch.info.meta.Skill = cv.Skill
 			ch.init()
 			return ch
 		}
@@ -86,11 +77,11 @@ type Channel struct {
 }
 
 func (c *Channel) watchId() string {
-	return fmt.Sprintf("ch-watch-%s", c.info.channelId)
+	return fmt.Sprintf("ch-watch-%s", c.info.ChannelId())
 }
 
 func (c *Channel) Id() string {
-	return c.Info().channelId
+	return c.Info().ChannelId()
 }
 
 func (c *Channel) Info() *ChannelInfo {
@@ -106,11 +97,11 @@ func (c *Channel) RoleName() string {
 }
 
 func (c *Channel) Name() string {
-	return c.Info().name
+	return c.Info().Name()
 }
 
 func (c *Channel) SetName(name string) SendFuture[*messages.SetChannelMeta] {
-	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, name, nil, nil))
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().ChannelId(), name, nil, nil))
 }
 
 func (c *Channel) Fetch() SendFuture[*messages.GetChannelMeta] {
@@ -122,15 +113,15 @@ func (c *Channel) Metadata() map[string]any {
 }
 
 func (c *Channel) SetMetadata(metadata map[string]any) SendFuture[*messages.SetChannelMeta] {
-	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", base.NewMetadata(metadata), nil))
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().ChannelId(), "", base.NewMetadata(metadata), nil))
 }
 
 func (c *Channel) SetSkill(skill *omega.Skill) SendFuture[*messages.SetChannelMeta] {
-	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().channelId, "", nil, skill))
+	return wrapSendFuture[*messages.SetChannelMeta](c.omega.Agent().SetChannelMetadata(c.Info().ChannelId(), "", nil, skill))
 }
 
 func (c *Channel) Leave() SendFuture[*messages.LeaveChannel] {
-	wsf := wrapSendFuture[*messages.LeaveChannel](c.omega.Agent().LeaveChannel(c.Info().channelId))
+	wsf := wrapSendFuture[*messages.LeaveChannel](c.omega.Agent().LeaveChannel(c.Info().ChannelId()))
 	fc := c
 	wsf.Base().Chainable().Then(func(parent concurrent.Future) interface{} {
 		if parent.IsSuccess() {
@@ -144,7 +135,7 @@ func (c *Channel) Leave() SendFuture[*messages.LeaveChannel] {
 }
 
 func (c *Channel) Close() SendFuture[*messages.CloseChannel] {
-	wsf := wrapSendFuture[*messages.CloseChannel](c.omega.Agent().CloseChannel(c.Info().channelId, c.key))
+	wsf := wrapSendFuture[*messages.CloseChannel](c.omega.Agent().CloseChannel(c.Info().ChannelId(), c.key))
 	fc := c
 	wsf.Base().Chainable().Then(func(parent concurrent.Future) interface{} {
 		if parent.IsSuccess() {
@@ -158,15 +149,15 @@ func (c *Channel) Close() SendFuture[*messages.CloseChannel] {
 }
 
 func (c *Channel) SendMessage(msg string, metadata map[string]any) SendFuture[*messages.ChannelMessage] {
-	return wrapSendFuture[*messages.ChannelMessage](c.omega.Agent().ChannelMessage(c.Info().channelId, msg, base.NewMetadata(metadata)))
+	return wrapSendFuture[*messages.ChannelMessage](c.omega.Agent().ChannelMessage(c.Info().ChannelId(), msg, base.NewMetadata(metadata)))
 }
 
 func (c *Channel) SendOwnerMessage(msg string, metadata map[string]any) SendFuture[*messages.ChannelOwnerMessage] {
-	return wrapSendFuture[*messages.ChannelOwnerMessage](c.omega.Agent().ChannelOwnerMessage(c.Info().channelId, msg, base.NewMetadata(metadata)))
+	return wrapSendFuture[*messages.ChannelOwnerMessage](c.omega.Agent().ChannelOwnerMessage(c.Info().ChannelId(), msg, base.NewMetadata(metadata)))
 }
 
 func (c *Channel) Count() SendFuture[*messages.ChannelCount] {
-	return wrapSendFuture[*messages.ChannelCount](c.omega.Agent().ChannelCount(c.Info().channelId))
+	return wrapSendFuture[*messages.ChannelCount](c.omega.Agent().ChannelCount(c.Info().ChannelId()))
 }
 
 func (c *Channel) ReplayChannelMessage(targetTimestamp int64, inverse bool, volume omega.Volume) Player {
@@ -222,9 +213,7 @@ func (c *Channel) init() {
 			switch tf.GetClass() {
 			case omega.TransitFrame_ClassNotification:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
-					fc.info.name = tfd.GetName()
-					fc.info.metadata = base.SafeGetStructMap(tfd.GetData())
-					fc.info.createdAt = tfd.GetCreatedAt()
+					fc.info.meta = tfd
 				}
 
 				if ctf := messages.WrapTransitFrame(tf); ctf != nil {
@@ -242,12 +231,7 @@ func (c *Channel) init() {
 				}
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
-					fc.info.name = tfd.GetName()
-					fc.info.metadata = base.SafeGetStructMap(tfd.GetData())
-					fc.info.createdAt = tfd.GetCreatedAt()
-					if fc.Role() == omega.Role_RoleOwner {
-						fc.info.skill = tfd.GetSkill()
-					}
+					fc.info.meta = tfd
 				}
 			}
 		}

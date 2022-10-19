@@ -386,7 +386,7 @@ func TestMessage_VoteCount(t *testing.T) {
 	assert.True(t, vt.Info().VoteOptions()[1].Id != "")
 	vt2 := oSecond.Vote(resp.VoteId).Join("")
 	assert.NotEmpty(t, vt2)
-	assert.True(t, vt2.Info().VoteOptions()[1].Select())
+	assert.True(t, vt2.VoteOptions()[1].Select())
 	assert.True(t, vt.Count().AwaitTimeout(Timeout).TransitFrame().GetVoteOptions()[0].GetCount() == 0)
 	assert.True(t, vt.Count().AwaitTimeout(Timeout).TransitFrame().GetVoteOptions()[1].GetCount() > 0)
 

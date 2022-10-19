@@ -226,7 +226,7 @@ func TestOmega_MultiVoteChannel(t *testing.T) {
 					assert.Fail(t, "send fail")
 				}
 
-				if !vt.Info().VoteOptions()[rand.Int()%2].Select() {
+				if !vt.VoteOptions()[rand.Int()%2].Select() {
 					assert.Fail(t, "select fail")
 				}
 

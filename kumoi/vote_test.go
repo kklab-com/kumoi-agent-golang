@@ -1,6 +1,7 @@
 package kumoi
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -55,7 +56,7 @@ func TestOmegaVote(t *testing.T) {
 	assert.NotNil(t, vt)
 	assert.True(t, vt.SendOwnerMessage("SendOwnerMessage").AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, vt.SetName("new_vote_name").AwaitTimeout(Timeout).IsSuccess())
-	assert.True(t, vt.Info().VoteOptions()[0].Select())
+	assert.True(t, vt.VoteOptions()[0].Select())
 	assert.True(t, vt.Status(omega.Vote_StatusDeny).AwaitTimeout(Timeout).IsSuccess())
 	assert.False(t, vt.Select(vt.Info().VoteOptions()[1].Id))
 	assert.Equal(t, int32(1), vt.Count().TransitFrame().GetVoteOptions()[0].Count)
@@ -86,6 +87,27 @@ func TestOmegaVoteWatch(t *testing.T) {
 	assert.True(t, vt.SendMessage("SendMessage").AwaitTimeout(Timeout).IsSuccess())
 	time.Sleep(time.Second)
 	assert.Equal(t, 1, vmCount)
+	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
+	assert.True(t, o.Close().Await().AwaitTimeout(Timeout).IsSuccess())
+}
+
+func TestOmegaVoteFetch(t *testing.T) {
+	o := NewOmegaBuilder(conf).Connect().Get()
+	assert.NotEmpty(t, o)
+	vtf := o.CreateVote(apirequest.CreateVote{
+		Name:              strings.ToLower(t.Name()),
+		VoteOptions:       []apirequest.CreateVoteOption{{"vto1"}, {"vto2"}},
+		IdleTimeoutSecond: 300,
+	})
+
+	assert.NotNil(t, vtf)
+	assert.NotNil(t, vtf.Get())
+	assert.Equal(t, vtf.Get().Name, strings.ToLower(t.Name()))
+	vt := vtf.Join()
+	assert.NotNil(t, vt)
+	assert.True(t, vt.SetName(t.Name()).AwaitTimeout(Timeout).IsSuccess())
+	assert.Equal(t, t.Name(), vt.Fetch().AwaitTimeout(Timeout).TransitFrame().GetName())
+	assert.Equal(t, t.Name(), vt.Info().Name())
 	assert.True(t, vt.Close().AwaitTimeout(Timeout).IsSuccess())
 	assert.True(t, o.Close().Await().AwaitTimeout(Timeout).IsSuccess())
 }
