@@ -30,10 +30,6 @@ func (c *ChannelInfo) Metadata() map[string]any {
 	return base.SafeGetStructMap(c.meta.Data)
 }
 
-func (c *ChannelInfo) Skill() *omega.Skill {
-	return c.meta.Skill
-}
-
 func (c *ChannelInfo) CreatedAt() int64 {
 	return c.meta.CreatedAt
 }
@@ -232,6 +228,13 @@ func (c *Channel) init() {
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetChannelMeta(); tfd != nil {
 					fc.info.meta = tfd
+					break
+				}
+
+				if tfd := tf.GetSetChannelMeta(); tfd != nil {
+					fc.info.meta.Data = tfd.Data
+					fc.info.meta.Skill = tfd.Skill
+					fc.info.meta.Name = tfd.Name
 				}
 			}
 		}

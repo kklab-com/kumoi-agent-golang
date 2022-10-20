@@ -226,6 +226,12 @@ func (v *Vote) init() {
 			case omega.TransitFrame_ClassResponse:
 				if tfd := tf.GetGetVoteMeta(); tfd != nil {
 					v.info.meta = tfd
+					break
+				}
+
+				if tfd := tf.GetSetVoteMeta(); tfd != nil {
+					v.info.meta.Data = tfd.Data
+					v.info.meta.Name = tfd.Name
 				}
 			}
 		}
