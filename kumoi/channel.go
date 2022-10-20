@@ -304,15 +304,16 @@ func (p *channelPlayer) load(f base.SendFuture) {
 			switch rcm := tf.GetData().(type) {
 			case *omega.TransitFrame_ReplayChannelMessage:
 				totalCount = rcm.ReplayChannelMessage.GetCount()
-				p.nextId = rcm.ReplayChannelMessage.GetNextId()
+				player.nextId = rcm.ReplayChannelMessage.GetNextId()
 			case *omega.TransitFrame_PlaybackChannelMessage:
 				totalCount = rcm.PlaybackChannelMessage.GetCount()
-				p.nextId = rcm.PlaybackChannelMessage.GetNextId()
+				player.nextId = rcm.PlaybackChannelMessage.GetNextId()
 			}
 
 			if totalCount > 0 {
 				bwg.Add(int(totalCount))
 			} else {
+				player.eof = true
 				player.omega.onMessageHandlers.Delete(watchId)
 			}
 
