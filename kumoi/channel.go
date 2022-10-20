@@ -233,7 +233,6 @@ func (c *Channel) init() {
 
 				if tfd := tf.GetSetChannelMeta(); tfd != nil {
 					fc.info.meta.Data = tfd.Data
-					fc.info.meta.Skill = tfd.Skill
 					fc.info.meta.Name = tfd.Name
 				}
 			}
