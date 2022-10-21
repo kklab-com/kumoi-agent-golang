@@ -267,26 +267,40 @@ type channelPlayer struct {
 	eof             bool
 }
 
-func (p *channelPlayer) Next() (t messages.TransitFrame) {
+func (p *channelPlayer) HasNext() bool {
 	if p.eof {
-		return
+		return false
 	}
 
 	if p.cursor < len(p.tfs) {
-		t = messages.WrapTransitFrame(p.tfs[p.cursor])
-		p.cursor++
-		return
+		return true
 	} else if p.cursor == len(p.tfs) && len(p.tfs) > 0 {
 		p.cursor = 0
 		p.tfs = nil
 		if p.nextId == "" {
 			p.eof = true
-			return
+			return false
 		}
 	}
 
 	p.load(p.loadFutureFunc(p.channelId, p.targetTimestamp, p.inverse, p.volume, p.nextId))
-	return p.Next()
+	return p.HasNext()
+}
+
+func (p *channelPlayer) Next() (t messages.TransitFrame) {
+	if p.HasNext() {
+		t = messages.WrapTransitFrame(p.tfs[p.cursor])
+		p.cursor++
+		return
+	}
+
+	return
+}
+
+func (p *channelPlayer) Range(f func(frame messages.TransitFrame)) {
+	for tf := p.Next(); tf != nil; tf = p.Next() {
+		f(tf)
+	}
 }
 
 func (p *channelPlayer) load(f base.SendFuture) {

@@ -238,5 +238,7 @@ func (b *OmegaBuilder) WithEngine(engine *base.Engine) *OmegaBuilder {
 }
 
 type Player interface {
+	HasNext() bool
 	Next() messages.TransitFrame
+	Range(func(frame messages.TransitFrame))
 }
