@@ -48,3 +48,40 @@ func TestOmega_RemoteSession(t *testing.T) {
 	ro.Close().Await()
 	so.Close().Await()
 }
+
+func TestOmega_SelfRemoteSession(t *testing.T) {
+	omg := NewOmegaBuilder(conf).Connect().Get()
+	assert.NotNil(t, omg)
+	rs := omg.GetRemoteSession(omg.Session().GetId())
+	msgStr := "MSG"
+	future := concurrent.NewFuture()
+	rs.OnMessage(func(msg *messages.SessionMessage) {
+		if msg.GetMessage() == msgStr {
+			future.Completable().Complete(nil)
+		}
+	})
+
+	omg.Session().SendMessage(msgStr)
+	assert.True(t, future.AwaitTimeout(Timeout*10).IsSuccess())
+	assert.True(t, omg.Close().Await().IsSuccess())
+}
+
+func TestOmega_SelfSessionMeta(t *testing.T) {
+	omg := NewOmegaBuilder(conf).Connect().Get()
+	assert.NotNil(t, omg)
+	rs := omg.GetRemoteSession(omg.Session().GetId())
+	assert.True(t, omg.Session().SetMetadata(map[string]any{"KEY": "VALUE"}).AwaitTimeout(Timeout*10).IsSuccess())
+	assert.Nil(t, rs.GetMetadata()["KEY"])
+	assert.True(t, rs.Fetch().AwaitTimeout(Timeout*10).IsSuccess())
+	assert.Equal(t, "VALUE", rs.GetMetadata()["KEY"])
+	assert.True(t, omg.Close().Await().IsSuccess())
+}
+
+func TestOmega_SessionClose(t *testing.T) {
+	omg := NewOmegaBuilder(conf).Connect().Get()
+	assert.NotNil(t, omg)
+	rs := omg.GetRemoteSession(omg.Session().GetId())
+	assert.True(t, rs.Base().Close().AwaitTimeout(Timeout*10).IsSuccess())
+	assert.False(t, omg.Session().Base().IsClosed())
+	assert.True(t, omg.Close().Await().IsSuccess())
+}

@@ -374,18 +374,31 @@ func (s *session) transitFramePreProcess(tf *omega.TransitFrame) {
 		s.connectFuture.Completable().Complete(s)
 	}
 
-	if gsm := tf.GetGetSessionMeta(); gsm != nil {
+	// SetSessionMeta
+	if ssm := tf.GetSetSessionMeta(); ssm != nil && tf.GetClass() == omega.TransitFrame_ClassResponse {
+		if s.id == ssm.GetSessionId() {
+			s.id = ssm.GetSessionId()
+			s.name = ssm.GetName()
+			s.metadata = ssm.GetData()
+		}
+	}
+
+	// GetSessionMeta
+	if gsm := tf.GetGetSessionMeta(); gsm != nil &&
+		(tf.GetClass() == omega.TransitFrame_ClassResponse || tf.GetClass() == omega.TransitFrame_ClassNotification) {
 		if s.id == gsm.SessionId {
 			s.id = gsm.GetSessionId()
 			s.subject = gsm.GetSubject()
 			s.name = gsm.GetName()
 			s.metadata = gsm.GetData()
-		} else if v, f := s.remoteSessions.Load(gsm.GetSessionId()); f {
-			rs := value.Cast[*session](v)
-			rs.id = gsm.GetSessionId()
-			rs.subject = gsm.GetSubject()
-			rs.name = gsm.GetName()
-			rs.metadata = gsm.GetData()
+
+			if v, f := s.remoteSessions.Load(gsm.GetSessionId()); f {
+				rs := value.Cast[*remoteSession](v)
+				rs.id = gsm.GetSessionId()
+				rs.subject = gsm.GetSubject()
+				rs.name = gsm.GetName()
+				rs.metadata = gsm.GetData()
+			}
 		}
 	}
 
@@ -433,7 +446,20 @@ func (s *session) submitTransitFrameWorker(tf *omega.TransitFrame) {
 }
 
 func (s *session) Close() concurrent.Future {
-	return s.ch.Disconnect()
+	future := concurrent.NewFuture()
+	s.SendRequest(&omega.TransitFrame_Close{Close: &omega.Close{}})
+	fs := s
+	s.Ch().Disconnect().AddListener(concurrent.NewFutureListener(func(f concurrent.Future) {
+		if f.IsSuccess() {
+			future.Completable().Complete(fs)
+		} else if f.IsFail() {
+			future.Completable().Fail(f.Error())
+		} else if f.IsCancelled() {
+			future.Completable().Cancel()
+		}
+	}))
+
+	return future
 }
 
 func (s *session) IsClosed() bool {
