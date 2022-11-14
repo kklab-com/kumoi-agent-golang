@@ -70,10 +70,13 @@ func TestOmega_SelfSessionMeta(t *testing.T) {
 	omg := NewOmegaBuilder(conf).Connect().Get()
 	assert.NotNil(t, omg)
 	rs := omg.GetRemoteSession(omg.Session().GetId())
+	name := omg.Session().GetName()
 	assert.True(t, omg.Session().SetMetadata(map[string]any{"KEY": "VALUE"}).AwaitTimeout(Timeout*10).IsSuccess())
+	assert.Equal(t, name, omg.Session().GetName())
 	assert.Nil(t, rs.GetMetadata()["KEY"])
 	assert.True(t, rs.Fetch().AwaitTimeout(Timeout*10).IsSuccess())
 	assert.Equal(t, "VALUE", rs.GetMetadata()["KEY"])
+	assert.Equal(t, name, rs.GetName())
 	assert.True(t, omg.Close().Await().IsSuccess())
 }
 
