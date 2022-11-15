@@ -14,7 +14,7 @@ require (
 	github.com/kklab-com/goth-kklogger v1.0.1
 	github.com/kklab-com/goth-kkutil v1.3.3
 	github.com/kklab-com/goth-panic v1.0.3
-	github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20221014074704-eb90b1713d47
+	github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20221115074842-609a57add08a
 	github.com/pkg/errors v0.8.0
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/protobuf v1.27.1

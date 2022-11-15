@@ -19,3 +19,15 @@ func (c *Hello) GetSubject() string {
 func (c *Hello) GetSubjectName() string {
 	return c.BaseTransitFrame().GetHello().GetSubjectName()
 }
+
+func (c *Hello) GetServiceName() string {
+	return c.BaseTransitFrame().GetHello().GetServiceName()
+}
+
+func (c *Hello) GetServiceVersion() string {
+	return c.BaseTransitFrame().GetHello().GetServiceVersion()
+}
+
+func (c *Hello) GetServiceNodeName() string {
+	return c.BaseTransitFrame().GetHello().GetServiceNodeName()
+}

@@ -108,8 +108,8 @@ github.com/kklab-com/goth-kkutil v1.3.3 h1:paNQ7D68JAMy/cauJRoJmIVNITGwwiRHl5a2o
 github.com/kklab-com/goth-kkutil v1.3.3/go.mod h1:wpGuSNqqnw+Far+C6JQBdEBHEvMl3M4DoOprTuhS6a8=
 github.com/kklab-com/goth-panic v1.0.3 h1:y7nvX7dXz9FXHDtciEjqbM4eY/zYZYTerZ2Ijf7TxZA=
 github.com/kklab-com/goth-panic v1.0.3/go.mod h1:dgrGkVi+i2nIz1Yqf5UTiasAhSC/wskD+hHzsvmdU5Q=
-github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20221014074704-eb90b1713d47 h1:5hjmDb7QOuhcjlLT78eea3AXThM5UQljaczSZkVgkIo=
-github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20221014074704-eb90b1713d47/go.mod h1:BCt3/a6mhz63EZsJ3usK4RMT+V+/YYiEWzkFhPgt61g=
+github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20221115074842-609a57add08a h1:gFNQlpu1hVrEB2J+ovpEJhOb2HgRKSrNVdqJ88AUOVc=
+github.com/kklab-com/kumoi-protobuf-golang v0.0.0-20221115074842-609a57add08a/go.mod h1:BCt3/a6mhz63EZsJ3usK4RMT+V+/YYiEWzkFhPgt61g=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
